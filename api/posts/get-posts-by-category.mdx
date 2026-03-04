@@ -1,0 +1,159 @@
+---
+title: 'Get Posts by Category'
+api: 'GET /api/post/category/{id}'
+description: 'Retrieve all blog posts belonging to a specific category'
+---
+
+## Overview
+
+This endpoint retrieves all posts that belong to a specific category. It's useful for displaying category-specific content or filtering posts by topic.
+
+<Note>
+  This endpoint does not require authentication and can be accessed publicly.
+</Note>
+
+## Endpoint
+
+```
+GET /api/post/category/{id}
+```
+
+## Authentication
+
+No authentication required. This is a public endpoint.
+
+## Path Parameters
+
+<ParamField path="id" type="integer" required>
+  The ID of the category to filter posts by
+</ParamField>
+
+## Response
+
+<ResponseField name="status" type="string" required>
+  Status message ("success")
+</ResponseField>
+
+<ResponseField name="posts" type="array" required>
+  Array of post objects belonging to the specified category
+  
+  <Expandable title="Post object properties">
+    <ResponseField name="id" type="integer">
+      Unique identifier for the post
+    </ResponseField>
+    
+    <ResponseField name="user_id" type="integer">
+      ID of the user who created the post
+    </ResponseField>
+    
+    <ResponseField name="category_id" type="integer">
+      ID of the category this post belongs to
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      The post title
+    </ResponseField>
+    
+    <ResponseField name="content" type="string">
+      The post content/body
+    </ResponseField>
+    
+    <ResponseField name="image" type="string">
+      Filename of the post's featured image
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string">
+      Timestamp when the post was created
+    </ResponseField>
+    
+    <ResponseField name="updated_at" type="string">
+      Timestamp when the post was last updated
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Request Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.example.com/api/post/category/1"
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/api/post/category/1')
+  .then(response => response.json())
+  .then(data => {
+    console.log('Posts in category:', data.posts);
+  });
+```
+
+```php PHP
+$categoryId = 1;
+$url = "https://api.example.com/api/post/category/{$categoryId}";
+
+$response = file_get_contents($url);
+$data = json_decode($response, true);
+
+foreach ($data['posts'] as $post) {
+    echo $post['title'] . "\n";
+}
+```
+
+</CodeGroup>
+
+## Response Example
+
+```json Success (200)
+{
+  "status": "success",
+  "posts": [
+    {
+      "id": 1,
+      "user_id": 3,
+      "category_id": 1,
+      "title": "Getting Started with Laravel",
+      "content": "Laravel is a powerful PHP framework...",
+      "image": "1709564730laravel.jpg",
+      "created_at": "2024-03-04T10:30:00.000000Z",
+      "updated_at": "2024-03-04T10:30:00.000000Z"
+    },
+    {
+      "id": 5,
+      "user_id": 2,
+      "category_id": 1,
+      "title": "Advanced Laravel Techniques",
+      "content": "Explore advanced patterns in Laravel development...",
+      "image": "1709568920advanced.jpg",
+      "created_at": "2024-03-04T12:15:00.000000Z",
+      "updated_at": "2024-03-04T12:15:00.000000Z"
+    }
+  ]
+}
+```
+
+## Implementation Details
+
+The endpoint filters posts using a simple WHERE clause:
+
+```php
+$posts = Post::where('category_id', $id)->get();
+```
+
+<Note>
+  If no posts exist for the specified category, the response will contain an empty array in the `posts` field.
+</Note>
+
+## Use Cases
+
+- Display all posts in a specific category on a category archive page
+- Filter blog content by topic
+- Build category-based navigation
+- Create category-specific RSS feeds
+
+## Related Endpoints
+
+- [List All Posts](/api/posts/list-posts) - Get all posts across all categories
+- [Get Posts by User](/api/posts/get-posts-by-user) - Filter posts by author
+- [Get Category](/api/categories/get-category) - Get category details
+- [List Categories](/api/categories/list-categories) - Get all categories

@@ -77,6 +77,8 @@
             "pages": [
               "api/posts/list-posts",
               "api/posts/get-post",
+              "api/posts/get-posts-by-category",
+              "api/posts/get-posts-by-user",
               "api/posts/create-post",
               "api/posts/update-post",
               "api/posts/delete-post",

@@ -1,0 +1,173 @@
+---
+title: 'Get Posts by User'
+api: 'GET /api/post/user/{id}'
+description: 'Retrieve all blog posts created by a specific user'
+---
+
+## Overview
+
+This endpoint retrieves all posts authored by a specific user. It's useful for displaying user profiles, author archives, or filtering content by contributor.
+
+<Note>
+  This endpoint does not require authentication and can be accessed publicly.
+</Note>
+
+## Endpoint
+
+```
+GET /api/post/user/{id}
+```
+
+## Authentication
+
+No authentication required. This is a public endpoint.
+
+## Path Parameters
+
+<ParamField path="id" type="integer" required>
+  The ID of the user whose posts you want to retrieve
+</ParamField>
+
+## Response
+
+<ResponseField name="status" type="string" required>
+  Status message ("success")
+</ResponseField>
+
+<ResponseField name="posts" type="array" required>
+  Array of post objects created by the specified user
+  
+  <Expandable title="Post object properties">
+    <ResponseField name="id" type="integer">
+      Unique identifier for the post
+    </ResponseField>
+    
+    <ResponseField name="user_id" type="integer">
+      ID of the user who created the post
+    </ResponseField>
+    
+    <ResponseField name="category_id" type="integer">
+      ID of the category this post belongs to
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      The post title
+    </ResponseField>
+    
+    <ResponseField name="content" type="string">
+      The post content/body
+    </ResponseField>
+    
+    <ResponseField name="image" type="string">
+      Filename of the post's featured image
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string">
+      Timestamp when the post was created
+    </ResponseField>
+    
+    <ResponseField name="updated_at" type="string">
+      Timestamp when the post was last updated
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Request Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.example.com/api/post/user/2"
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/api/post/user/2')
+  .then(response => response.json())
+  .then(data => {
+    console.log('User posts:', data.posts);
+    console.log('Total posts:', data.posts.length);
+  });
+```
+
+```php PHP
+$userId = 2;
+$url = "https://api.example.com/api/post/user/{$userId}";
+
+$response = file_get_contents($url);
+$data = json_decode($response, true);
+
+echo "Posts by user {$userId}: " . count($data['posts']) . "\n";
+
+foreach ($data['posts'] as $post) {
+    echo "- {$post['title']}\n";
+}
+```
+
+</CodeGroup>
+
+## Response Example
+
+```json Success (200)
+{
+  "status": "success",
+  "posts": [
+    {
+      "id": 3,
+      "user_id": 2,
+      "category_id": 1,
+      "title": "My First Blog Post",
+      "content": "This is my inaugural post on the blog...",
+      "image": "1709564730first.jpg",
+      "created_at": "2024-03-01T09:00:00.000000Z",
+      "updated_at": "2024-03-01T09:00:00.000000Z"
+    },
+    {
+      "id": 7,
+      "user_id": 2,
+      "category_id": 3,
+      "title": "Travel Photography Tips",
+      "content": "Here are my top tips for capturing stunning travel photos...",
+      "image": "1709568920travel.jpg",
+      "created_at": "2024-03-03T14:30:00.000000Z",
+      "updated_at": "2024-03-03T14:30:00.000000Z"
+    },
+    {
+      "id": 9,
+      "user_id": 2,
+      "category_id": 2,
+      "title": "Cooking Italian Cuisine",
+      "content": "Authentic Italian recipes from my kitchen...",
+      "image": "1709571200cooking.jpg",
+      "created_at": "2024-03-04T08:00:00.000000Z",
+      "updated_at": "2024-03-04T08:00:00.000000Z"
+    }
+  ]
+}
+```
+
+## Implementation Details
+
+The endpoint filters posts using a simple WHERE clause:
+
+```php
+$posts = Post::where('user_id', $id)->get();
+```
+
+<Note>
+  If the specified user has not created any posts, the response will contain an empty array in the `posts` field.
+</Note>
+
+## Use Cases
+
+- Display all posts on an author profile page
+- Show contributor portfolios
+- Build author-based archives
+- Track content creation by user
+- Generate per-author RSS feeds
+
+## Related Endpoints
+
+- [List All Posts](/api/posts/list-posts) - Get all posts across all users
+- [Get Posts by Category](/api/posts/get-posts-by-category) - Filter posts by category
+- [Get User Details](/api/users/get-user) - Get information about the user
+- [Get Single Post](/api/posts/get-post) - Get a specific post with full details
