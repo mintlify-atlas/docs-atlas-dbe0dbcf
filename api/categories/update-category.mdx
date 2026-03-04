@@ -1,0 +1,135 @@
+---
+title: 'Update Category'
+description: 'Update an existing category'
+---
+
+## Endpoint
+
+<ParamField path="method" type="string" default="PUT">
+  PUT
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/category/{id}
+</ParamField>
+
+<Note>
+  This endpoint requires authentication. Include a valid authorization token in the request.
+</Note>
+
+## Authentication
+
+This endpoint is protected by the `api.auth` middleware. You must include a valid authorization token in the request headers.
+
+## Path Parameters
+
+<ParamField path="id" type="number" required>
+  The ID of the category to update
+</ParamField>
+
+## Request Body
+
+The request body must contain a `json` parameter with a JSON string containing the category data to update.
+
+<ParamField body="json" type="string" required>
+  JSON string containing category data
+  
+  <ParamField body="name" type="string" required>
+    The updated name of the category (required)
+  </ParamField>
+</ParamField>
+
+## Validation Rules
+
+- `name`: Required field
+
+<Note>
+  The following fields are automatically excluded from the update and cannot be modified: `id`, `created_at`
+</Note>
+
+## Response
+
+Returns a JSON object containing the update status and the updated data.
+
+### Success Response
+
+<ResponseField name="code" type="number">
+  HTTP status code (200 for success)
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Response status ('success')
+</ResponseField>
+
+<ResponseField name="category" type="object">
+  The updated category data (as submitted, not the full database record)
+  
+  <ResponseField name="name" type="string">
+    Updated category name
+  </ResponseField>
+</ResponseField>
+
+### Error Response
+
+<ResponseField name="code" type="number">
+  HTTP status code (400 for validation error)
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Response status ('error')
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message describing what went wrong
+</ResponseField>
+
+## Example Request
+
+```bash cURL
+curl -X PUT http://your-domain.com/api/category/1 \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d 'json={"name":"Updated Technology"}'
+```
+
+## Example Responses
+
+### Success Response (200)
+
+```json
+{
+  "code": 200,
+  "status": "success",
+  "category": {
+    "name": "Updated Technology"
+  }
+}
+```
+
+### Empty Request Error (400)
+
+```json
+{
+  "code": 400,
+  "status": "error",
+  "message": "No has enviado ninguna categoria"
+}
+```
+
+## Implementation Details
+
+This endpoint is defined in `CategoryController.php:90`. It:
+
+1. Receives data as a JSON string in the `json` parameter
+2. Validates that the `name` field is present (defined at line 99-101)
+3. Automatically removes `id` and `created_at` fields from the update data (lines 104-105)
+4. Updates the category using Laravel's `where()->update()` method
+5. Returns the submitted parameters, not the full updated record from the database
+
+<Note>
+  The request expects data to be sent as a form parameter named `json` containing a JSON string, not as direct JSON in the request body. This is the same format used by the create endpoint.
+</Note>
+
+<Note>
+  The response returns the parameters that were submitted for update, not the complete category object from the database. To get the full updated category, make a subsequent GET request to `/api/category/{id}`.
+</Note>

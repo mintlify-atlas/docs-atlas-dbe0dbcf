@@ -1,0 +1,85 @@
+---
+title: 'List Categories'
+description: 'Retrieve a list of all categories'
+---
+
+## Endpoint
+
+<ParamField path="method" type="string" default="GET">
+  GET
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/category
+</ParamField>
+
+<Note>
+  This endpoint does not require authentication. It is publicly accessible.
+</Note>
+
+## Response
+
+Returns a JSON object containing all categories in the system.
+
+<ResponseField name="code" type="number">
+  HTTP status code (200 for success)
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Response status ('success')
+</ResponseField>
+
+<ResponseField name="categories" type="array">
+  Array of category objects
+  
+  <ResponseField name="id" type="number">
+    Category ID
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    Category name
+  </ResponseField>
+  
+  <ResponseField name="created_at" type="string">
+    Timestamp when the category was created
+  </ResponseField>
+  
+  <ResponseField name="updated_at" type="string">
+    Timestamp when the category was last updated
+  </ResponseField>
+</ResponseField>
+
+## Example Request
+
+```bash cURL
+curl -X GET http://your-domain.com/api/category
+```
+
+## Example Response
+
+### Success Response (200)
+
+```json
+{
+  "code": 200,
+  "status": "success",
+  "categories": [
+    {
+      "id": 1,
+      "name": "Technology",
+      "created_at": "2024-01-15T10:30:00.000000Z",
+      "updated_at": "2024-01-15T10:30:00.000000Z"
+    },
+    {
+      "id": 2,
+      "name": "Travel",
+      "created_at": "2024-01-16T14:20:00.000000Z",
+      "updated_at": "2024-01-16T14:20:00.000000Z"
+    }
+  ]
+}
+```
+
+## Implementation Details
+
+This endpoint is defined in `CategoryController.php:20` and uses Laravel's Eloquent ORM to retrieve all categories from the database without pagination.

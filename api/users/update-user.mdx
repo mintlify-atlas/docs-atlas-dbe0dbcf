@@ -1,0 +1,202 @@
+---
+title: "Update User"
+api: "PUT /api/user/update"
+description: "Update the authenticated user's profile information"
+---
+
+## Endpoint
+
+```
+PUT /api/user/update
+```
+
+This endpoint updates the authenticated user's profile information. Requires a valid JWT token in the Authorization header.
+
+## Authentication
+
+<ParamField header="Authorization" type="string" required>
+  JWT token for authenticating the user
+  
+  Example: `Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...`
+</ParamField>
+
+## Request Body
+
+<ParamField body="json" type="string" required>
+  JSON string containing the user fields to update
+</ParamField>
+
+The JSON string should contain the following fields:
+
+<ParamField body="name" type="string" required>
+  User's first name (alphabetic characters only)
+</ParamField>
+
+<ParamField body="surname" type="string" required>
+  User's last name (alphabetic characters only)
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  User's email address (must be unique)
+</ParamField>
+
+<ParamField body="description" type="string">
+  User's profile description (optional)
+</ParamField>
+
+<Warning>
+  The following fields are **automatically excluded** from updates and will be ignored if provided:
+  - `id` - User ID cannot be changed
+  - `role` - User role cannot be changed
+  - `password` - Use a dedicated password change endpoint
+  - `created_at` - Creation timestamp is immutable
+  - `remember_token` - Token is managed internally
+</Warning>
+
+## Response
+
+<ResponseField name="code" type="integer">
+  HTTP status code (200 for success, 400 for unauthorized)
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Status of the request: `success` or `error`
+</ResponseField>
+
+<ResponseField name="user" type="object">
+  The authenticated user object (from JWT token)
+  
+  <ResponseField name="sub" type="integer">
+    User's ID from the JWT token
+  </ResponseField>
+  
+  <ResponseField name="email" type="string">
+    User's email from the JWT token
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="changes" type="object">
+  Object containing the fields that were updated
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message (only present when status is `error`)
+</ResponseField>
+
+## Request Example
+
+<CodeGroup>
+
+```bash cURL
+curl -X PUT "https://api.example.com/api/user/update" \
+  -H "Authorization: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..." \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d 'json={"name":"John","surname":"Doe","email":"john.doe@example.com","description":"Senior developer"}'
+```
+
+```javascript JavaScript
+const token = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...';
+const updateData = {
+  name: 'John',
+  surname: 'Doe',
+  email: 'john.doe@example.com',
+  description: 'Senior developer'
+};
+
+fetch('https://api.example.com/api/user/update', {
+  method: 'PUT',
+  headers: {
+    'Authorization': token,
+    'Content-Type': 'application/x-www-form-urlencoded'
+  },
+  body: `json=${JSON.stringify(updateData)}`
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+```php PHP
+$token = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...';
+$updateData = [
+    'name' => 'John',
+    'surname' => 'Doe',
+    'email' => 'john.doe@example.com',
+    'description' => 'Senior developer'
+];
+
+$postData = http_build_query(['json' => json_encode($updateData)]);
+
+$options = [
+    'http' => [
+        'method' => 'PUT',
+        'header' => "Authorization: {$token}\r\n" .
+                    "Content-Type: application/x-www-form-urlencoded\r\n",
+        'content' => $postData
+    ]
+];
+
+$context = stream_context_create($options);
+$response = file_get_contents('https://api.example.com/api/user/update', false, $context);
+$data = json_decode($response, true);
+```
+
+</CodeGroup>
+
+## Response Examples
+
+<CodeGroup>
+
+```json Success (200)
+{
+  "code": 200,
+  "status": "success",
+  "user": {
+    "sub": 1,
+    "email": "john.doe@example.com"
+  },
+  "changes": {
+    "name": "John",
+    "surname": "Doe",
+    "email": "john.doe@example.com",
+    "description": "Senior developer"
+  }
+}
+```
+
+```json Unauthorized (400)
+{
+  "code": 400,
+  "status": "error",
+  "message": "El usuario no esta identificado."
+}
+```
+
+```json Validation Error (200)
+{
+  "status": "error",
+  "code": 404,
+  "message": "Validation failed",
+  "errors": {
+    "name": [
+      "The name field is required."
+    ],
+    "email": [
+      "The email has already been taken."
+    ]
+  }
+}
+```
+
+</CodeGroup>
+
+## Validation Rules
+
+The endpoint validates the following rules:
+
+- **name**: Required, must contain only alphabetic characters
+- **surname**: Required, must contain only alphabetic characters
+- **email**: Required, must be a valid email format, must be unique (excluding current user)
+
+<Note>
+  The email uniqueness check excludes the current user's ID, allowing users to keep their existing email address.
+</Note>

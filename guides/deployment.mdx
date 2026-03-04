@@ -1,0 +1,651 @@
+---
+title: Deployment guide
+description: Deploy the Laravel Blog API to a production server
+---
+
+This guide covers deploying the Laravel Blog API to a production environment with best practices for security, performance, and reliability.
+
+## Server requirements
+
+Ensure your production server meets the following requirements:
+
+### PHP requirements
+
+- **PHP** ^7.1.3 or higher
+- **Extensions**:
+  - OpenSSL PHP Extension
+  - PDO PHP Extension
+  - Mbstring PHP Extension
+  - Tokenizer PHP Extension
+  - XML PHP Extension
+  - Ctype PHP Extension
+  - JSON PHP Extension
+  - BCMath PHP Extension
+
+<Info>
+Verify installed PHP extensions with `php -m`
+</Info>
+
+### Web server
+
+Choose one of the following:
+
+- **Nginx** 1.18+ (recommended)
+- **Apache** 2.4+ with `mod_rewrite` enabled
+
+### Database
+
+- **MySQL** 5.7+ or **MariaDB** 10.2+
+- **PostgreSQL** 9.6+ (alternative)
+
+### Additional requirements
+
+- **Composer** (for dependency management)
+- **Git** (for deployment)
+- SSL certificate (for HTTPS)
+
+## Pre-deployment checklist
+
+Before deploying, ensure you have:
+
+<Steps>
+  <Step title="Test locally">
+    Verify the application works correctly in your local environment
+  </Step>
+  
+  <Step title="Update dependencies">
+    Ensure all Composer dependencies are up to date:
+    
+    ```bash
+    composer update
+    ```
+  </Step>
+  
+  <Step title="Run tests">
+    Execute your test suite to catch any issues:
+    
+    ```bash
+    php artisan test
+    ```
+  </Step>
+  
+  <Step title="Optimize code">
+    Clear and cache configuration files:
+    
+    ```bash
+    php artisan config:cache
+    php artisan route:cache
+    ```
+  </Step>
+</Steps>
+
+## Environment configuration
+
+Production environment settings differ significantly from development.
+
+### Production .env file
+
+Create a production `.env` file with the following critical settings:
+
+```bash
+# Application
+APP_NAME="Laravel Blog API"
+APP_ENV=production
+APP_KEY=base64:YOUR_GENERATED_KEY_HERE
+APP_DEBUG=false
+APP_URL=https://yourdomain.com
+
+# Logging
+LOG_CHANNEL=stack
+
+# Database
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=production_database
+DB_USERNAME=production_user
+DB_PASSWORD=strong_random_password
+
+# Cache and Session
+CACHE_DRIVER=redis
+SESSION_DRIVER=redis
+SESSION_LIFETIME=120
+QUEUE_CONNECTION=redis
+
+# Redis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=your_redis_password
+REDIS_PORT=6379
+
+# Mail
+MAIL_DRIVER=smtp
+MAIL_HOST=smtp.yourprovider.com
+MAIL_PORT=587
+MAIL_USERNAME=your_smtp_username
+MAIL_PASSWORD=your_smtp_password
+MAIL_ENCRYPTION=tls
+```
+
+<Warning>
+**Critical security settings:**
+- Set `APP_DEBUG=false` to hide error details from users
+- Use a strong, unique `APP_KEY` (generate with `php artisan key:generate`)
+- Set `APP_ENV=production`
+- Use strong, random passwords for database and Redis
+</Warning>
+
+### Environment variables explained
+
+#### Application settings
+
+- **APP_DEBUG=false**: Prevents sensitive error information from being displayed to users
+- **APP_ENV=production**: Optimizes Laravel for production performance
+- **APP_URL**: Your application's public URL (important for generating correct links)
+
+#### Performance settings
+
+```bash
+CACHE_DRIVER=redis
+SESSION_DRIVER=redis
+QUEUE_CONNECTION=redis
+```
+
+<Tip>
+Using Redis for caching, sessions, and queues significantly improves performance compared to file-based drivers.
+</Tip>
+
+## Database setup
+
+### Create production database
+
+On your production server, create the database:
+
+```bash
+mysql -u root -p
+```
+
+```sql
+CREATE DATABASE production_database CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'production_user'@'localhost' IDENTIFIED BY 'strong_random_password';
+GRANT ALL PRIVILEGES ON production_database.* TO 'production_user'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+<Note>
+Replace `production_database`, `production_user`, and `strong_random_password` with your actual values.
+</Note>
+
+### Run migrations
+
+Execute migrations on the production database:
+
+```bash
+php artisan migrate --force
+```
+
+The `--force` flag bypasses the production environment confirmation.
+
+<Warning>
+**Always backup your database before running migrations in production:**
+
+```bash
+mysqldump -u production_user -p production_database > backup_$(date +%Y%m%d_%H%M%S).sql
+```
+</Warning>
+
+## File storage configuration
+
+### Set up storage directories
+
+Ensure storage directories exist and have proper permissions:
+
+```bash
+# Create necessary directories
+mkdir -p storage/framework/cache
+mkdir -p storage/framework/sessions
+mkdir -p storage/framework/views
+mkdir -p storage/logs
+
+# Set permissions
+chmod -R 775 storage bootstrap/cache
+
+# Set ownership (adjust www-data to your web server user)
+chown -R www-data:www-data storage bootstrap/cache
+```
+
+<Info>
+The web server user varies by system:
+- Ubuntu/Debian: `www-data`
+- CentOS/RHEL: `apache` or `nginx`
+- macOS: `_www`
+</Info>
+
+### Create storage symlink
+
+If your application uses public file storage:
+
+```bash
+php artisan storage:link
+```
+
+This creates a symbolic link from `public/storage` to `storage/app/public`.
+
+## Web server configuration
+
+### Nginx configuration
+
+Create an Nginx server block for your application:
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+    server_name yourdomain.com www.yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name yourdomain.com www.yourdomain.com;
+    
+    root /var/www/laravel-blog-api/public;
+    index index.php;
+
+    # SSL Configuration
+    ssl_certificate /path/to/ssl/certificate.crt;
+    ssl_certificate_key /path/to/ssl/private.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Logging
+    access_log /var/log/nginx/laravel-access.log;
+    error_log /var/log/nginx/laravel-error.log;
+
+    # File size limits
+    client_max_body_size 20M;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php7.4-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
+```
+
+<Tip>
+Replace `/var/run/php/php7.4-fpm.sock` with your PHP-FPM socket path. Check with `ls /var/run/php/`
+</Tip>
+
+### Apache configuration
+
+If using Apache, create a virtual host:
+
+```apache
+<VirtualHost *:80>
+    ServerName yourdomain.com
+    ServerAlias www.yourdomain.com
+    Redirect permanent / https://yourdomain.com/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName yourdomain.com
+    ServerAlias www.yourdomain.com
+    
+    DocumentRoot /var/www/laravel-blog-api/public
+    
+    <Directory /var/www/laravel-blog-api/public>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    # SSL Configuration
+    SSLEngine on
+    SSLCertificateFile /path/to/ssl/certificate.crt
+    SSLCertificateKeyFile /path/to/ssl/private.key
+    
+    # Logging
+    ErrorLog ${APACHE_LOG_DIR}/laravel-error.log
+    CustomLog ${APACHE_LOG_DIR}/laravel-access.log combined
+</VirtualHost>
+```
+
+Enable required Apache modules:
+
+```bash
+sudo a2enmod rewrite
+sudo a2enmod ssl
+sudo systemctl restart apache2
+```
+
+## Deployment process
+
+<Steps>
+  <Step title="Upload code to server">
+    Use Git to deploy your code:
+    
+    ```bash
+    cd /var/www
+    git clone https://github.com/yourusername/laravel-blog-api.git
+    cd laravel-blog-api
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Install PHP dependencies without dev packages:
+    
+    ```bash
+    composer install --optimize-autoloader --no-dev
+    ```
+    
+    <Info>
+    The `--no-dev` flag excludes development dependencies, reducing the application size.
+    </Info>
+  </Step>
+
+  <Step title="Configure environment">
+    Copy and edit the environment file:
+    
+    ```bash
+    cp .env.example .env
+    nano .env
+    ```
+    
+    Update all production values as detailed in [Environment configuration](#environment-configuration).
+  </Step>
+
+  <Step title="Generate application key">
+    ```bash
+    php artisan key:generate
+    ```
+  </Step>
+
+  <Step title="Set permissions">
+    ```bash
+    chmod -R 775 storage bootstrap/cache
+    chown -R www-data:www-data storage bootstrap/cache
+    ```
+  </Step>
+
+  <Step title="Run migrations">
+    ```bash
+    php artisan migrate --force
+    ```
+  </Step>
+
+  <Step title="Optimize application">
+    Cache configuration and routes for better performance:
+    
+    ```bash
+    php artisan config:cache
+    php artisan route:cache
+    php artisan view:cache
+    ```
+    
+    <Note>
+    Clear these caches when deploying updates using `php artisan cache:clear`
+    </Note>
+  </Step>
+
+  <Step title="Restart web server">
+    <CodeGroup>
+    ```bash Nginx
+    sudo systemctl restart nginx
+    ```
+    
+    ```bash Apache
+    sudo systemctl restart apache2
+    ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+## Security best practices
+
+### Essential security measures
+
+<Warning>
+Implement these security measures before going live:
+</Warning>
+
+1. **Disable debug mode**
+   ```bash
+   APP_DEBUG=false
+   ```
+
+2. **Use HTTPS only**
+   - Install SSL certificate (use Let's Encrypt for free certificates)
+   - Force HTTPS redirects
+   - Set `APP_URL` to use `https://`
+
+3. **Secure your APP_KEY**
+   - Never commit `.env` to version control
+   - Use a strong, random application key
+   - Rotate keys periodically
+
+4. **Database security**
+   - Use strong passwords
+   - Create dedicated database users with minimal privileges
+   - Never use root database credentials
+
+5. **File permissions**
+   ```bash
+   # Application files: readable by web server
+   chmod -R 755 /var/www/laravel-blog-api
+   
+   # Storage and cache: writable by web server
+   chmod -R 775 storage bootstrap/cache
+   
+   # .env file: readable only by owner
+   chmod 600 .env
+   ```
+
+6. **Hide sensitive files**
+   - Ensure `.env`, `.git`, and `storage` are not publicly accessible
+   - Configure your web server to deny access to these directories
+
+### Additional hardening
+
+- Enable rate limiting for API endpoints
+- Implement CORS policies appropriately
+- Use prepared statements (Laravel does this by default)
+- Keep dependencies updated regularly
+- Monitor application logs for suspicious activity
+
+## Performance optimization
+
+### Caching strategies
+
+```bash
+# Cache configuration
+php artisan config:cache
+
+# Cache routes
+php artisan route:cache
+
+# Cache views
+php artisan view:cache
+```
+
+<Tip>
+After making configuration changes, clear the cache with `php artisan cache:clear` and rebuild it.
+</Tip>
+
+### Use Redis for caching
+
+Install Redis:
+
+```bash
+sudo apt install redis-server
+sudo systemctl enable redis-server
+sudo systemctl start redis-server
+```
+
+Update `.env`:
+
+```bash
+CACHE_DRIVER=redis
+SESSION_DRIVER=redis
+QUEUE_CONNECTION=redis
+```
+
+### Enable OPcache
+
+Edit `php.ini` to enable OPcache:
+
+```ini
+opcache.enable=1
+opcache.memory_consumption=128
+opcache.interned_strings_buffer=8
+opcache.max_accelerated_files=4000
+opcache.revalidate_freq=60
+opcache.fast_shutdown=1
+```
+
+## Monitoring and maintenance
+
+### Log monitoring
+
+Laravel logs are stored in `storage/logs/laravel.log`:
+
+```bash
+# View recent logs
+tail -f storage/logs/laravel.log
+
+# Search for errors
+grep "ERROR" storage/logs/laravel.log
+```
+
+<Info>
+Consider using a log management service like Papertrail, Loggly, or CloudWatch for centralized logging.
+</Info>
+
+### Database backups
+
+Automate daily backups with a cron job:
+
+```bash
+# Add to crontab
+0 2 * * * mysqldump -u production_user -p'password' production_database > /backups/db_$(date +\%Y\%m\%d).sql
+```
+
+### Scheduled tasks
+
+If using Laravel's task scheduler, add to crontab:
+
+```bash
+* * * * * cd /var/www/laravel-blog-api && php artisan schedule:run >> /dev/null 2>&1
+```
+
+## Continuous deployment
+
+For automated deployments, create a deployment script:
+
+```bash
+#!/bin/bash
+# deploy.sh
+
+set -e
+
+echo "Starting deployment..."
+
+# Pull latest code
+git pull origin main
+
+# Install/update dependencies
+composer install --optimize-autoloader --no-dev
+
+# Run migrations
+php artisan migrate --force
+
+# Clear and rebuild cache
+php artisan cache:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# Restart services
+sudo systemctl restart php7.4-fpm
+sudo systemctl reload nginx
+
+echo "Deployment completed successfully!"
+```
+
+Make it executable:
+
+```bash
+chmod +x deploy.sh
+```
+
+## Troubleshooting
+
+### 500 Internal Server Error
+
+Check Laravel logs:
+
+```bash
+tail -f storage/logs/laravel.log
+```
+
+Common causes:
+- Incorrect file permissions
+- Missing `.env` file
+- Database connection issues
+
+### 403 Forbidden
+
+Ensure web server has read access:
+
+```bash
+chown -R www-data:www-data /var/www/laravel-blog-api
+```
+
+### White screen / blank page
+
+Enable error reporting temporarily to diagnose:
+
+```bash
+APP_DEBUG=true
+```
+
+<Warning>
+Disable debug mode immediately after diagnosing the issue.
+</Warning>
+
+### Database connection errors
+
+Verify:
+- Database credentials in `.env`
+- Database server is running
+- Firewall allows database connections
+
+```bash
+# Test MySQL connection
+mysql -u production_user -p production_database
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="API reference" icon="book" href="/api/auth/register">
+    Explore the API endpoints
+  </Card>
+  <Card title="Setup guide" icon="gear" href="/guides/setup">
+    Return to local development setup
+  </Card>
+</CardGroup>

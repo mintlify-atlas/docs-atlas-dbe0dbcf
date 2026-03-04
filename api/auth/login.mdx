@@ -1,0 +1,201 @@
+---
+title: 'Login User'
+api: 'POST /api/login'
+description: 'Authenticate a user and receive a JWT token'
+---
+
+## Overview
+
+Authenticates a user with email and password, returning a JWT token for subsequent API requests. The endpoint supports two response formats: a token string or a decoded token object with user details.
+
+## Request
+
+### Body Parameters
+
+The request body must contain a `json` parameter with a JSON string containing the login credentials.
+
+<ParamField body="json" type="string" required>
+  JSON string containing the login credentials with the following fields:
+  
+  <ParamField body="email" type="string" required>
+    User's email address. Must be a valid email format.
+  </ParamField>
+  
+  <ParamField body="password" type="string" required>
+    User's password. Will be hashed using SHA-256 for authentication.
+  </ParamField>
+  
+  <ParamField body="gettoken" type="boolean" optional>
+    Optional parameter to control response format:
+    - If omitted or `false`: Returns JWT token as a string
+    - If `true`: Returns decoded token object with user details
+  </ParamField>
+</ParamField>
+
+### Request Examples
+
+```bash cURL - Get Token String
+curl -X POST https://your-domain.com/api/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d 'json={"email":"john.doe@example.com","password":"secretpassword123"}'
+```
+
+```bash cURL - Get User Object
+curl -X POST https://your-domain.com/api/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d 'json={"email":"john.doe@example.com","password":"secretpassword123","gettoken":true}'
+```
+
+## Response
+
+### Success Response - Token String (200)
+
+When `gettoken` is omitted or `false`, returns a JWT token string:
+
+```json
+"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImVtYWlsIjoiam9obi5kb2VAZXhhbXBsZS5jb20iLCJuYW1lIjoiSm9obiIsInN1cm5hbWUiOiJEb2UiLCJkZXNjcmlwdGlvbiI6bnVsbCwiaW1hZ2UiOm51bGwsImlhdCI6MTcwOTU1MDYwMCwiZXhwIjoxNzEwMTU1NDAwfQ.signature"
+```
+
+<Note>
+  Use this token in the `Authorization` header for authenticated requests to other API endpoints.
+</Note>
+
+### Success Response - User Object (200)
+
+When `gettoken` is `true`, returns a decoded token object with user information:
+
+<ResponseField name="sub" type="integer">
+  User ID (subject identifier)
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  User's email address
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  User's first name
+</ResponseField>
+
+<ResponseField name="surname" type="string">
+  User's last name
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  User's profile description (may be null)
+</ResponseField>
+
+<ResponseField name="image" type="string">
+  User's profile image filename (may be null)
+</ResponseField>
+
+<ResponseField name="iat" type="integer">
+  Token issued at timestamp (Unix timestamp)
+</ResponseField>
+
+<ResponseField name="exp" type="integer">
+  Token expiration timestamp (Unix timestamp). Valid for 7 days from issue.
+</ResponseField>
+
+#### User Object Example
+
+```json
+{
+  "sub": 1,
+  "email": "john.doe@example.com",
+  "name": "John",
+  "surname": "Doe",
+  "description": null,
+  "image": null,
+  "iat": 1709550600,
+  "exp": 1710155400
+}
+```
+
+### Error Responses
+
+<Accordion title="Validation Error (200)">
+  Returned when the input data fails validation.
+
+  ```json
+  {
+    "status": "error",
+    "code": "404",
+    "message": "El usuario no se ha podido identificar",
+    "errors": {
+      "email": [
+        "The email field is required."
+      ],
+      "password": [
+        "The password field is required."
+      ]
+    },
+    "hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+  }
+  ```
+
+  **Validation rules:**
+  - `email`: Must be present and a valid email format
+  - `password`: Must be present
+</Accordion>
+
+<Accordion title="Invalid Credentials (200)">
+  Returned when email or password is incorrect.
+
+  ```json
+  {
+    "status": "error",
+    "message": "Login incorrecto."
+  }
+  ```
+
+  <Note>
+    This error is returned when credentials don't match any user in the database.
+  </Note>
+</Accordion>
+
+## JWT Token Details
+
+### Token Structure
+
+The JWT token contains the following claims:
+
+- **sub**: User ID
+- **email**: User's email address
+- **name**: User's first name
+- **surname**: User's last name
+- **description**: User's profile description
+- **image**: User's profile image filename
+- **iat**: Token issued at timestamp
+- **exp**: Token expiration timestamp
+
+### Token Expiration
+
+<Warning>
+  JWT tokens are valid for **7 days** (604,800 seconds) from the time of issue. After expiration, users must login again to obtain a new token.
+</Warning>
+
+### Token Usage
+
+Include the JWT token in the `Authorization` header for authenticated API requests:
+
+```bash
+Authorization: YOUR_JWT_TOKEN
+```
+
+## Important Notes
+
+<Note>
+  **Password Hashing**: The password is hashed using SHA-256 before authentication. This matches the hashing algorithm used during registration.
+</Note>
+
+<Info>
+  **Response Format**: All login responses return HTTP status code 200, even for errors. Check the `status` field in the response body to determine success or failure.
+</Info>
+
+<Info>
+  **JSON Parameter Format**: Like the register endpoint, this requires a `json` parameter containing a JSON string, not direct JSON in the request body.
+</Info>
+
+<Tip>
+  **Token vs Object**: Use `gettoken: false` (default) when you only need the token for API authentication. Use `gettoken: true` when you need immediate access to user details without making an additional API call.
+</Tip>

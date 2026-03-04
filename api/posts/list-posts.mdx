@@ -1,0 +1,136 @@
+---
+title: 'List Posts'
+api: 'GET /api/post'
+description: 'Retrieve a list of all blog posts with their category information'
+---
+
+## Overview
+
+This endpoint retrieves all blog posts from the database. Each post includes its associated category information through eager loading.
+
+<Note>
+  This endpoint does not require authentication. It is publicly accessible.
+</Note>
+
+## Endpoint
+
+```
+GET /api/post
+```
+
+## Authentication
+
+No authentication required. This endpoint is excluded from the `api.auth` middleware.
+
+## Request
+
+No parameters required.
+
+## Response
+
+<ResponseField name="code" type="number" required>
+  HTTP status code (200 for success)
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Status message ("success")
+</ResponseField>
+
+<ResponseField name="posts" type="array" required>
+  Array of post objects with their relationships
+  
+  <ResponseField name="id" type="number">
+    Unique identifier for the post
+  </ResponseField>
+  
+  <ResponseField name="user_id" type="number">
+    ID of the user who created the post
+  </ResponseField>
+  
+  <ResponseField name="category_id" type="number">
+    ID of the post's category
+  </ResponseField>
+  
+  <ResponseField name="title" type="string">
+    Title of the post
+  </ResponseField>
+  
+  <ResponseField name="content" type="string">
+    Content/body of the post
+  </ResponseField>
+  
+  <ResponseField name="image" type="string">
+    Filename of the post's image
+  </ResponseField>
+  
+  <ResponseField name="created_at" type="string">
+    Timestamp when the post was created
+  </ResponseField>
+  
+  <ResponseField name="updated_at" type="string">
+    Timestamp when the post was last updated
+  </ResponseField>
+  
+  <ResponseField name="category" type="object">
+    Category relationship object containing category details
+  </ResponseField>
+</ResponseField>
+
+### Success Response
+
+```json
+{
+  "code": 200,
+  "status": "success",
+  "posts": [
+    {
+      "id": 1,
+      "user_id": 5,
+      "category_id": 2,
+      "title": "Introduction to Laravel",
+      "content": "Laravel is a powerful PHP framework...",
+      "image": "1678901234image.jpg",
+      "created_at": "2026-03-01T10:30:00.000000Z",
+      "updated_at": "2026-03-01T10:30:00.000000Z",
+      "category": {
+        "id": 2,
+        "name": "Technology",
+        "created_at": "2026-01-15T08:00:00.000000Z",
+        "updated_at": "2026-01-15T08:00:00.000000Z"
+      }
+    },
+    {
+      "id": 2,
+      "user_id": 3,
+      "category_id": 1,
+      "title": "Getting Started with APIs",
+      "content": "APIs are essential for modern web development...",
+      "image": "1678901567api.png",
+      "created_at": "2026-03-02T14:20:00.000000Z",
+      "updated_at": "2026-03-02T14:20:00.000000Z",
+      "category": {
+        "id": 1,
+        "name": "Web Development",
+        "created_at": "2026-01-10T12:00:00.000000Z",
+        "updated_at": "2026-01-10T12:00:00.000000Z"
+      }
+    }
+  ]
+}
+```
+
+## Implementation Details
+
+The endpoint uses Laravel's eager loading to retrieve posts with their category relationships:
+
+```php
+$posts = Post::all()->load('category');
+```
+
+This prevents N+1 query problems by loading all category data in a single additional query.
+
+## Related Endpoints
+
+- [Get Single Post](/api/posts/get-post) - Retrieve a specific post by ID
+- [Get Posts by Category](/api/posts/get-posts-by-category) - Filter posts by category
+- [Get Posts by User](/api/posts/get-posts-by-user) - Filter posts by user

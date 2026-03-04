@@ -1,0 +1,229 @@
+---
+title: Authentication
+description: Learn how JWT token-based authentication works in the Laravel Blog API
+---
+
+The Laravel Blog API uses JWT (JSON Web Token) authentication to secure endpoints. Authentication is handled through the custom `JwtAuth` helper class and uses the Firebase PHP-JWT library.
+
+## JWT library
+
+The API uses the `firebase/php-jwt` package (version 3.0.0) for token generation and validation:
+
+```json composer.json
+"require": {
+    "firebase/php-jwt": "3.0.0"
+}
+```
+
+## How JWT tokens are generated
+
+When you successfully log in, the `JwtAuth` helper generates a JWT token containing your user information. Here's how the token generation works:
+
+```php app/Helpers/JwtAuth.php
+public function signup($email, $password, $getToken = null) {
+    // Find user with credentials
+    $user = User::where([
+        'email' => $email,
+        'password' => $password
+    ])->first();
+
+    // Generate token with user data
+    if(is_object($user)) {
+        $token = array(
+            'sub' => $user->id,
+            'email' => $user->email,
+            'name' => $user->name,
+            'surname' => $user->surname,
+            'description' => $user->description,
+            'image' => $user->image,
+            'iat' => time(),
+            'exp' => time() + (7 * 24 * 60 * 60),
+        );
+        $jwt = JWT::encode($token, $this->key, 'HS256');
+        return $jwt;
+    }
+}
+```
+
+<Note>
+The secret key is defined in the `JwtAuth` constructor. In production, you should store this in your `.env` file.
+</Note>
+
+## Token structure and claims
+
+Each JWT token contains the following claims:
+
+<Accordion title="Token claims breakdown">
+  | Claim | Description | Example |
+  |-------|-------------|----------|
+  | `sub` | Subject - the user ID | `1` |
+  | `email` | User's email address | `user@example.com` |
+  | `name` | User's first name | `John` |
+  | `surname` | User's last name | `Doe` |
+  | `description` | User's bio/description | `Software developer` |
+  | `image` | User's profile image filename | `avatar.jpg` |
+  | `iat` | Issued at - timestamp when token was created | `1709568000` |
+  | `exp` | Expiration - timestamp when token expires | `1710172800` |
+</Accordion>
+
+## Token expiration
+
+Tokens are valid for **7 days** from the time of generation:
+
+```php
+'exp' => time() + (7 * 24 * 60 * 60) // 7 days
+```
+
+After expiration, you'll need to log in again to obtain a new token.
+
+## Token validation
+
+The `checkToken` method validates JWT tokens and handles exceptions:
+
+```php app/Helpers/JwtAuth.php
+public function checkToken($jwt, $getIdentity = false) {
+    $auth = false;
+
+    try {
+        $decode = JWT::decode($jwt, $this->key, ['HS256']);
+    }
+    catch (\UnexpectedValueException $e) {
+        $auth = false;
+    }
+    catch (\DomainException $e) {
+        $auth = false;
+    }
+
+    if(!empty($decode) && is_object($decode) && isset($decode->sub)) {
+        $auth = true;
+    }
+
+    if($getIdentity) {
+        return $decode; // Return user data
+    }
+
+    return $auth; // Return boolean
+}
+```
+
+<Tabs>
+  <Tab title="Validation only">
+    Pass only the token to check if it's valid:
+
+    ```php
+    $jwtAuth = new JwtAuth();
+    $isValid = $jwtAuth->checkToken($token); // Returns true/false
+    ```
+  </Tab>
+  <Tab title="Get user identity">
+    Pass `true` as the second parameter to retrieve user data:
+
+    ```php
+    $jwtAuth = new JwtAuth();
+    $user = $jwtAuth->checkToken($token, true); // Returns decoded token
+    $userId = $user->sub;
+    $userEmail = $user->email;
+    ```
+  </Tab>
+</Tabs>
+
+## Including tokens in requests
+
+When making authenticated API requests, include the JWT token in the `Authorization` header:
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.example.com/api/user/detail/1" \
+  -H "Authorization: YOUR_JWT_TOKEN_HERE"
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/api/user/detail/1', {
+  headers: {
+    'Authorization': 'YOUR_JWT_TOKEN_HERE'
+  }
+});
+```
+
+```php PHP
+$token = $request->header('Authorization');
+$jwtAuth = new JwtAuth();
+$checkToken = $jwtAuth->checkToken($token);
+```
+</CodeGroup>
+
+<Warning>
+Do not include "Bearer" prefix in the Authorization header. Send only the raw JWT token.
+</Warning>
+
+## Login flow example
+
+Here's how the login process works in the `UserController`:
+
+```php app/Http/Controllers/UserController.php
+public function login(Request $request) {
+    $jwtAuth = new \JwtAuth();
+
+    // Receive data via POST
+    $json = $request->input('json', null);
+    $params = json_decode($json);
+    $params_array = json_decode($json, true);
+
+    // Validate data
+    $validate = \Validator::make($params_array, [
+        'email' => 'required|email',
+        'password' => 'required'
+    ]);
+
+    if (!$validate->fails()) {
+        // Hash the password
+        $pwd = hash('sha256', $params->password);
+
+        // Generate and return token
+        $signup = $jwtAuth->signup($params->email, $pwd);
+
+        if(!empty($params->gettoken)) {
+            $signup = $jwtAuth->signup($params->email, $pwd, true);
+        }
+    }
+
+    return response()->json($signup, 200);
+}
+```
+
+<Note>
+Passwords are hashed using SHA-256 before comparison. Make sure to hash passwords the same way during registration.
+</Note>
+
+## Retrieving authenticated user data
+
+Once authenticated, you can retrieve the user's identity from the token:
+
+```php app/Http/Controllers/PostController.php
+private function getIdentity(Request $request) {
+    $jwtAuth = new JwtAuth();
+    $token = $request->header('Authorization', null);
+    $user = $jwtAuth->checkToken($token, true);
+    return $user;
+}
+```
+
+The decoded token object contains all user claims, which you can access like:
+
+```php
+$user = $this->getIdentity($request);
+$userId = $user->sub;
+$userEmail = $user->email;
+$userName = $user->name;
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Middleware" icon="shield-halved" href="/concepts/middleware">
+    Learn how middleware protects routes using JWT authentication
+  </Card>
+  <Card title="User endpoints" icon="user" href="/api/auth/register">
+    Explore authentication endpoints like register and login
+  </Card>
+</CardGroup>

@@ -1,0 +1,214 @@
+---
+title: "Upload User Avatar"
+api: "POST /api/user/upload"
+description: "Upload an avatar image for the authenticated user"
+---
+
+## Endpoint
+
+```
+POST /api/user/upload
+```
+
+This endpoint allows authenticated users to upload an avatar image. The image is stored in the `users` storage disk with a timestamped filename.
+
+## Authentication
+
+<ParamField header="Authorization" type="string" required>
+  JWT token for authenticating the user (validated by ApiAuthMiddleware)
+  
+  Example: `Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...`
+</ParamField>
+
+<Warning>
+  This endpoint requires authentication via the ApiAuthMiddleware. Requests without a valid JWT token will be rejected.
+</Warning>
+
+## Request Body
+
+<ParamField body="file0" type="file" required>
+  The image file to upload
+  
+  **Content-Type**: `multipart/form-data`
+  
+  **Accepted formats**: jpg, jpeg, png, gif
+  
+  **Validation**: Must be a valid image file
+</ParamField>
+
+## Response
+
+<ResponseField name="code" type="integer">
+  HTTP status code (200 for success, 400 for error)
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Status of the upload: `success` or `error`
+</ResponseField>
+
+<ResponseField name="image" type="string">
+  The filename of the uploaded image (only present on success)
+  
+  Format: `{timestamp}{original_filename}`
+  
+  Example: `1672934567avatar.png`
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message (only present when status is `error`)
+</ResponseField>
+
+<ResponseField name="errors" type="object">
+  Validation errors (only present when validation fails)
+</ResponseField>
+
+## Request Example
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "https://api.example.com/api/user/upload" \
+  -H "Authorization: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..." \
+  -F "file0=@/path/to/avatar.png"
+```
+
+```javascript JavaScript
+const token = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...';
+const fileInput = document.querySelector('input[type="file"]');
+const formData = new FormData();
+formData.append('file0', fileInput.files[0]);
+
+fetch('https://api.example.com/api/user/upload', {
+  method: 'POST',
+  headers: {
+    'Authorization': token
+  },
+  body: formData
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+```php PHP
+$token = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...';
+$filePath = '/path/to/avatar.png';
+
+$curl = curl_init();
+
+$cfile = new CURLFile($filePath, mime_content_type($filePath), basename($filePath));
+
+curl_setopt_array($curl, [
+    CURLOPT_URL => 'https://api.example.com/api/user/upload',
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_HTTPHEADER => [
+        "Authorization: {$token}"
+    ],
+    CURLOPT_POSTFIELDS => [
+        'file0' => $cfile
+    ]
+]);
+
+$response = curl_exec($curl);
+$data = json_decode($response, true);
+
+curl_close($curl);
+```
+
+</CodeGroup>
+
+## Response Examples
+
+<CodeGroup>
+
+```json Success (200)
+{
+  "code": 200,
+  "status": "success",
+  "image": "1672934567avatar.png"
+}
+```
+
+```json Validation Error (400)
+{
+  "code": 400,
+  "status": "error",
+  "message": "Error al subir imagen.",
+  "errors": {
+    "file0": [
+      "The file0 must be an image.",
+      "The file0 must be a file of type: jpg, jpeg, png, gif."
+    ]
+  }
+}
+```
+
+```json Missing File (400)
+{
+  "code": 400,
+  "status": "error",
+  "message": "Error al subir imagen.",
+  "errors": {
+    "file0": [
+      "The file0 field is required."
+    ]
+  }
+}
+```
+
+</CodeGroup>
+
+## Validation Rules
+
+The endpoint validates the following rules:
+
+- **file0**: Required field
+- Must be a valid image file
+- Allowed mime types: jpg, jpeg, png, gif
+- Must pass Laravel's image validation
+
+## Storage Details
+
+<Note>
+  Images are stored in the `users` storage disk. The filename format is `{timestamp}{original_filename}` where timestamp is a Unix timestamp ensuring unique filenames.
+</Note>
+
+---
+
+## Retrieving Uploaded Avatars
+
+After uploading an avatar, you can retrieve it using the following endpoint:
+
+### GET /api/user/avatar/{filename}
+
+Retrieve an uploaded avatar image by its filename.
+
+#### Path Parameters
+
+<ParamField path="filename" type="string" required>
+  The filename of the avatar image returned from the upload endpoint
+</ParamField>
+
+#### Request Example
+
+```bash cURL
+curl -X GET "https://api.example.com/api/user/avatar/1672934567avatar.png" \
+  --output avatar.png
+```
+
+#### Response
+
+- **Success (200)**: Returns the image file with appropriate content type
+- **Not Found (404)**: Returns JSON error if image doesn't exist
+
+```json Error Response (404)
+{
+  "code": 404,
+  "status": "error",
+  "message": "La imagen no existe."
+}
+```
+
+<Note>
+  The getImage endpoint does not require authentication and can be used to display user avatars publicly.
+</Note>

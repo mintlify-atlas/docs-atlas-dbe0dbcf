@@ -1,0 +1,426 @@
+---
+title: Database migrations
+description: Learn how to set up the database and work with Laravel migrations
+---
+
+This guide covers everything you need to know about database setup, migrations, and schema management in the Laravel Blog API.
+
+## Database configuration
+
+Before running migrations, you need to configure your database connection in the `.env` file.
+
+### Supported databases
+
+The Laravel Blog API supports multiple database systems:
+
+- **MySQL** 5.7+ (recommended)
+- **MariaDB** 10.2+
+- **PostgreSQL** 9.6+
+- **SQLite** 3.8.8+
+- **SQL Server** 2017+
+
+### MySQL configuration
+
+Update your `.env` file with your MySQL database credentials:
+
+```bash
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=your_database_name
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+```
+
+<Info>
+The database configuration is defined in `config/database.php`, which reads these environment variables.
+</Info>
+
+### Creating the database
+
+Before running migrations, create the database:
+
+<CodeGroup>
+```bash MySQL CLI
+mysql -u root -p -e "CREATE DATABASE your_database_name CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+```sql MySQL GUI
+CREATE DATABASE your_database_name 
+CHARACTER SET utf8mb4 
+COLLATE utf8mb4_unicode_ci;
+```
+</CodeGroup>
+
+<Note>
+Laravel uses `utf8mb4` character set by default, which supports full Unicode including emojis and special characters.
+</Note>
+
+## Running migrations
+
+Migrations are version control for your database schema. They allow you to modify the database structure in a consistent, repeatable way.
+
+### Execute all migrations
+
+Run all pending migrations:
+
+```bash
+php artisan migrate
+```
+
+This command will:
+1. Create a `migrations` table to track which migrations have run
+2. Execute all migrations in the `database/migrations/` directory
+3. Record each migration in the `migrations` table
+
+<Tip>
+The first time you run migrations, Laravel creates a `migrations` table to track which migrations have been executed.
+</Tip>
+
+### Check migration status
+
+View which migrations have run and which are pending:
+
+```bash
+php artisan migrate:status
+```
+
+### Rollback migrations
+
+<Warning>
+Rolling back migrations will drop tables and delete data. Always backup your database before rolling back in production.
+</Warning>
+
+Rollback the last batch of migrations:
+
+```bash
+php artisan migrate:rollback
+```
+
+Rollback all migrations:
+
+```bash
+php artisan migrate:reset
+```
+
+Rollback all migrations and re-run them:
+
+```bash
+php artisan migrate:refresh
+```
+
+## Database schema
+
+The Laravel Blog API includes the following database tables:
+
+### Users table
+
+Stores user account information for authentication.
+
+**Migration file**: `2014_10_12_000000_create_users_table.php`
+
+```php
+Schema::create('users', function (Blueprint $table) {
+    $table->increments('id');
+    $table->string('name');
+    $table->string('email')->unique();
+    $table->timestamp('email_verified_at')->nullable();
+    $table->string('password');
+    $table->rememberToken();
+    $table->timestamps();
+});
+```
+
+**Columns**:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | increments | Primary key (auto-incrementing) |
+| `name` | string | User's full name |
+| `email` | string | Unique email address |
+| `email_verified_at` | timestamp | Email verification timestamp (nullable) |
+| `password` | string | Hashed password |
+| `remember_token` | string | Token for "remember me" functionality |
+| `created_at` | timestamp | Record creation timestamp |
+| `updated_at` | timestamp | Record last update timestamp |
+
+### Password resets table
+
+Stores temporary tokens for password reset requests.
+
+**Migration file**: `2014_10_12_100000_create_password_resets_table.php`
+
+```php
+Schema::create('password_resets', function (Blueprint $table) {
+    $table->string('email')->index();
+    $table->string('token');
+    $table->timestamp('created_at')->nullable();
+});
+```
+
+**Columns**:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `email` | string | User's email address (indexed) |
+| `token` | string | Password reset token |
+| `created_at` | timestamp | Token creation timestamp |
+
+<Info>
+Password reset tokens expire after a configured time period. This table has no primary key as tokens are temporary and cleaned up periodically.
+</Info>
+
+## Creating custom migrations
+
+You can create additional migrations to extend the database schema.
+
+### Generate a new migration
+
+<CodeGroup>
+```bash Create table
+php artisan make:migration create_posts_table
+```
+
+```bash Modify table
+php artisan make:migration add_published_at_to_posts_table --table=posts
+```
+</CodeGroup>
+
+### Migration structure
+
+Each migration class has two methods:
+
+```php
+<?php
+
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Migrations\Migration;
+
+class CreatePostsTable extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up()
+    {
+        Schema::create('posts', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('title');
+            $table->text('content');
+            $table->integer('user_id')->unsigned();
+            $table->timestamps();
+            
+            $table->foreign('user_id')
+                  ->references('id')->on('users')
+                  ->onDelete('cascade');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down()
+    {
+        Schema::dropIfExists('posts');
+    }
+}
+```
+
+<Note>
+- The `up()` method runs when executing the migration
+- The `down()` method runs when rolling back the migration
+- Always implement `down()` to allow rollbacks
+</Note>
+
+### Common column types
+
+```php
+// String columns
+$table->string('name');              // VARCHAR(255)
+$table->string('name', 100);         // VARCHAR(100)
+$table->text('description');         // TEXT
+
+// Numeric columns
+$table->integer('votes');            // INTEGER
+$table->bigInteger('large_number');  // BIGINT
+$table->decimal('amount', 8, 2);     // DECIMAL(8,2)
+$table->boolean('active');           // BOOLEAN
+
+// Date and time
+$table->date('birth_date');          // DATE
+$table->dateTime('created_at');      // DATETIME
+$table->timestamp('updated_at');     // TIMESTAMP
+$table->timestamps();                // created_at + updated_at
+
+// Special columns
+$table->increments('id');            // Auto-incrementing primary key
+$table->json('metadata');            // JSON column
+$table->enum('type', ['a', 'b']);    // ENUM
+```
+
+### Adding indexes
+
+```php
+// Unique constraint
+$table->string('email')->unique();
+
+// Regular index
+$table->string('email')->index();
+
+// Composite index
+$table->index(['user_id', 'post_id']);
+
+// Foreign key
+$table->foreign('user_id')
+      ->references('id')->on('users')
+      ->onDelete('cascade');
+```
+
+## Database seeding
+
+Seeders populate your database with test or default data.
+
+### Running seeders
+
+The main seeder class is located at `database/seeds/DatabaseSeeder.php`:
+
+```php
+<?php
+
+use Illuminate\Database\Seeder;
+
+class DatabaseSeeder extends Seeder
+{
+    public function run()
+    {
+        // $this->call(UsersTableSeeder::class);
+    }
+}
+```
+
+Run all seeders:
+
+```bash
+php artisan db:seed
+```
+
+### Creating a seeder
+
+```bash
+php artisan make:seeder UsersTableSeeder
+```
+
+Example seeder:
+
+```php
+<?php
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+
+class UsersTableSeeder extends Seeder
+{
+    public function run()
+    {
+        DB::table('users')->insert([
+            'name' => 'Admin User',
+            'email' => 'admin@example.com',
+            'password' => Hash::make('password'),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+}
+```
+
+<Tip>
+Use Laravel's model factories with the Faker library to generate realistic test data quickly.
+</Tip>
+
+### Migrate and seed together
+
+Refresh the database and run all seeders:
+
+```bash
+php artisan migrate:refresh --seed
+```
+
+## Production considerations
+
+<Warning>
+Never run `migrate:refresh` or `migrate:rollback` in production as it will delete all data.
+</Warning>
+
+### Running migrations in production
+
+```bash
+# Only run pending migrations
+php artisan migrate --force
+```
+
+The `--force` flag is required in production environments to bypass the confirmation prompt.
+
+### Database backups
+
+Always backup your database before running migrations in production:
+
+```bash
+# MySQL backup
+mysqldump -u username -p database_name > backup.sql
+
+# Restore if needed
+mysql -u username -p database_name < backup.sql
+```
+
+## Troubleshooting
+
+### "SQLSTATE[HY000] [1045] Access denied"
+
+Your database credentials in `.env` are incorrect. Verify:
+- Database username
+- Database password
+- Database host and port
+
+### "SQLSTATE[HY000] [2002] Connection refused"
+
+The database server is not running. Start your MySQL service:
+
+```bash
+# Linux
+sudo service mysql start
+
+# macOS
+brew services start mysql
+```
+
+### "Base table or view already exists"
+
+The table already exists in your database. Either:
+- Drop the table manually: `DROP TABLE table_name;`
+- Rollback migrations: `php artisan migrate:rollback`
+
+### "Syntax error or access violation: 1071 Specified key was too long"
+
+This occurs on older MySQL versions. Add this to `app/Providers/AppServiceProvider.php`:
+
+```php
+use Illuminate\Support\Facades\Schema;
+
+public function boot()
+{
+    Schema::defaultStringLength(191);
+}
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="API reference" icon="book" href="/api/auth/register">
+    Explore the available API endpoints
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/guides/deployment">
+    Deploy your API to production
+  </Card>
+</CardGroup>

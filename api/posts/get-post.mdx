@@ -1,0 +1,163 @@
+---
+title: 'Get Post'
+api: 'GET /api/post/{id}'
+description: 'Retrieve a single blog post with its category and user information'
+---
+
+## Overview
+
+This endpoint retrieves a specific blog post by its ID. The response includes both the post's category and user (author) information through eager loading.
+
+<Note>
+  This endpoint does not require authentication. It is publicly accessible.
+</Note>
+
+## Endpoint
+
+```
+GET /api/post/{id}
+```
+
+## Authentication
+
+No authentication required. This endpoint is excluded from the `api.auth` middleware.
+
+## Path Parameters
+
+<ParamField path="id" type="number" required>
+  The unique identifier of the post to retrieve
+</ParamField>
+
+## Request
+
+No additional parameters required.
+
+## Response
+
+### Success Response (200)
+
+<ResponseField name="code" type="number" required>
+  HTTP status code (200 for success)
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Status message ("success")
+</ResponseField>
+
+<ResponseField name="posts" type="object" required>
+  The post object with its relationships
+  
+  <ResponseField name="id" type="number">
+    Unique identifier for the post
+  </ResponseField>
+  
+  <ResponseField name="user_id" type="number">
+    ID of the user who created the post
+  </ResponseField>
+  
+  <ResponseField name="category_id" type="number">
+    ID of the post's category
+  </ResponseField>
+  
+  <ResponseField name="title" type="string">
+    Title of the post
+  </ResponseField>
+  
+  <ResponseField name="content" type="string">
+    Content/body of the post
+  </ResponseField>
+  
+  <ResponseField name="image" type="string">
+    Filename of the post's image
+  </ResponseField>
+  
+  <ResponseField name="created_at" type="string">
+    Timestamp when the post was created
+  </ResponseField>
+  
+  <ResponseField name="updated_at" type="string">
+    Timestamp when the post was last updated
+  </ResponseField>
+  
+  <ResponseField name="category" type="object">
+    Category relationship object containing category details
+  </ResponseField>
+  
+  <ResponseField name="user" type="object">
+    User relationship object containing author information
+  </ResponseField>
+</ResponseField>
+
+```json
+{
+  "code": 200,
+  "status": "success",
+  "posts": {
+    "id": 1,
+    "user_id": 5,
+    "category_id": 2,
+    "title": "Introduction to Laravel",
+    "content": "Laravel is a powerful PHP framework for building web applications. It provides elegant syntax and many features out of the box...",
+    "image": "1678901234image.jpg",
+    "created_at": "2026-03-01T10:30:00.000000Z",
+    "updated_at": "2026-03-01T10:30:00.000000Z",
+    "category": {
+      "id": 2,
+      "name": "Technology",
+      "created_at": "2026-01-15T08:00:00.000000Z",
+      "updated_at": "2026-01-15T08:00:00.000000Z"
+    },
+    "user": {
+      "id": 5,
+      "name": "John Doe",
+      "surname": "Smith",
+      "email": "john@example.com",
+      "role": "ROLE_USER",
+      "created_at": "2026-01-01T09:00:00.000000Z",
+      "updated_at": "2026-01-01T09:00:00.000000Z"
+    }
+  }
+}
+```
+
+### Error Response (404)
+
+<ResponseField name="code" type="number">
+  HTTP status code (404 for not found)
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Status message ("error")
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error description
+</ResponseField>
+
+```json
+{
+  "code": 404,
+  "status": "error",
+  "message": "La entrada no existe"
+}
+```
+
+## Implementation Details
+
+The endpoint uses Laravel's eager loading to retrieve the post with both category and user relationships:
+
+```php
+$post = Post::find($id)->load('category')->load('user');
+```
+
+This ensures efficient database queries by loading all related data upfront.
+
+<Warning>
+  If the post with the specified ID does not exist, the endpoint returns a 404 error with the message "La entrada no existe" (The post does not exist).
+</Warning>
+
+## Related Endpoints
+
+- [List All Posts](/api/posts/list-posts) - Retrieve all posts
+- [Update Post](/api/posts/update-post) - Update an existing post
+- [Delete Post](/api/posts/delete-post) - Delete a post

@@ -1,0 +1,321 @@
+---
+title: Data models
+description: Understanding the Eloquent models and relationships in the Laravel Blog API
+---
+
+The Laravel Blog API uses three main Eloquent models: User, Post, and Category. These models define the database structure and relationships between entities.
+
+## User model
+
+The User model represents registered users who can create and manage blog posts.
+
+```php app/User.php
+class User extends Authenticatable
+{
+    use Notifiable;
+
+    protected $fillable = [
+        'name', 'surname', 'description', 'email', 'password',
+    ];
+
+    protected $hidden = [
+        'password', 'remember_token',
+    ];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
+
+    // One-to-many relationship
+    public function posts() {
+        return $this->hasMany('App\Post');
+    }
+}
+```
+
+### User attributes
+
+<Accordion title="Fillable attributes">
+  These attributes can be mass-assigned when creating or updating users:
+
+  - **name** - User's first name (required, alpha characters only)
+  - **surname** - User's last name (required, alpha characters only)
+  - **description** - User's bio or description (optional)
+  - **email** - User's email address (required, must be unique)
+  - **password** - User's hashed password (required, SHA-256)
+</Accordion>
+
+<Warning>
+The `password` and `remember_token` fields are hidden from JSON responses for security.
+</Warning>
+
+### User relationships
+
+A user can have many posts:
+
+```php
+// Get all posts by a user
+$user = User::find(1);
+$posts = $user->posts;
+```
+
+## Post model
+
+The Post model represents blog articles created by users.
+
+```php app/Post.php
+class Post extends Model
+{
+    protected $table = 'posts';
+
+    protected $fillable = [
+        'title', 'content', 'category_id', 'image'
+    ];
+
+    // Many-to-one relationship (inverse)
+    public function user() {
+        return $this->belongsTo('App\User', 'user_id');
+    }
+
+    public function category() {
+        return $this->belongsTo('App\Category', 'category_id');
+    }
+}
+```
+
+### Post attributes
+
+<Accordion title="Fillable attributes">
+  These attributes can be mass-assigned:
+
+  - **title** - Post title (required)
+  - **content** - Post body/content (required)
+  - **category_id** - Foreign key to categories table (required)
+  - **image** - Filename of the post's featured image (required)
+  - **user_id** - Foreign key to users table (set automatically from JWT token)
+</Accordion>
+
+### Post relationships
+
+<Tabs>
+  <Tab title="User relationship">
+    Each post belongs to one user:
+
+    ```php
+    $post = Post::find(1);
+    $author = $post->user;
+    echo $author->name; // Author's name
+    ```
+
+    The `user_id` foreign key links posts to their authors.
+  </Tab>
+  <Tab title="Category relationship">
+    Each post belongs to one category:
+
+    ```php
+    $post = Post::find(1);
+    $category = $post->category;
+    echo $category->name; // Category name
+    ```
+
+    The `category_id` foreign key categorizes posts.
+  </Tab>
+</Tabs>
+
+### Eager loading relationships
+
+You can load relationships efficiently using eager loading:
+
+```php app/Http/Controllers/PostController.php
+// Load single post with relationships
+public function show($id) {
+    $post = Post::find($id)->load('category')
+                           ->load('user');
+    return response()->json($post);
+}
+
+// Load all posts with categories
+public function index() {
+    $posts = Post::all()->load('category');
+    return response()->json($posts);
+}
+```
+
+<Note>
+Eager loading prevents N+1 query problems and improves performance.
+</Note>
+
+## Category model
+
+The Category model represents blog post categories.
+
+```php app/Category.php
+class Category extends Model
+{
+    protected $table = 'categories';
+
+    // One-to-many relationship
+    public function posts() {
+        return $this->hasMany('App\Post');
+    }
+}
+```
+
+### Category attributes
+
+Categories have a simple structure:
+
+- **id** - Primary key (auto-increment)
+- **name** - Category name (required)
+- **created_at** - Timestamp when category was created
+- **updated_at** - Timestamp when category was last updated
+
+### Category relationships
+
+A category can have many posts:
+
+```php
+// Get all posts in a category
+$category = Category::find(1);
+$posts = $category->posts;
+```
+
+You can also query posts by category:
+
+```php app/Http/Controllers/PostController.php
+public function getPostsByCategory($id) {
+    $posts = Post::where('category_id', $id)->get();
+    return response()->json([
+        'status' => 'success',
+        'posts' => $posts
+    ], 200);
+}
+```
+
+## Eloquent relationships explained
+
+The API uses two types of Eloquent relationships:
+
+<CodeGroup>
+```php hasMany (One-to-Many)
+// One user has many posts
+class User extends Authenticatable
+{
+    public function posts() {
+        return $this->hasMany('App\Post');
+    }
+}
+
+// One category has many posts
+class Category extends Model
+{
+    public function posts() {
+        return $this->hasMany('App\Post');
+    }
+}
+```
+
+```php belongsTo (Many-to-One)
+// Many posts belong to one user
+class Post extends Model
+{
+    public function user() {
+        return $this->belongsTo('App\User', 'user_id');
+    }
+
+    public function category() {
+        return $this->belongsTo('App\Category', 'category_id');
+    }
+}
+```
+</CodeGroup>
+
+### Relationship diagram
+
+```
+User (1) ----< (Many) Post (Many) >---- (1) Category
+         hasMany      belongsTo         hasMany
+```
+
+## Querying with relationships
+
+Here are common patterns for working with these models:
+
+<Tabs>
+  <Tab title="Find posts by user">
+    ```php
+    // Method 1: Using relationship
+    $user = User::find($userId);
+    $posts = $user->posts;
+
+    // Method 2: Direct query
+    $posts = Post::where('user_id', $userId)->get();
+    ```
+  </Tab>
+  <Tab title="Find posts by category">
+    ```php
+    // Method 1: Using relationship
+    $category = Category::find($categoryId);
+    $posts = $category->posts;
+
+    // Method 2: Direct query
+    $posts = Post::where('category_id', $categoryId)->get();
+    ```
+  </Tab>
+  <Tab title="Create post with relationships">
+    ```php
+    $post = new Post();
+    $post->user_id = $user->sub; // From JWT token
+    $post->category_id = $params->category_id;
+    $post->title = $params->title;
+    $post->content = $params->content;
+    $post->image = $params->image;
+    $post->save();
+    ```
+  </Tab>
+</Tabs>
+
+## Model validation
+
+The API validates model data before saving:
+
+<CodeGroup>
+```php User validation
+$validate = \Validator::make($params_array, [
+    'name' => 'required|alpha',
+    'surname' => 'required|alpha',
+    'email' => 'required|email|unique:users',
+    'password' => 'required'
+]);
+```
+
+```php Post validation
+$validate = \Validator::make($params_array, [
+    'title' => 'required',
+    'content' => 'required',
+    'category_id' => 'required',
+    'image' => 'required'
+]);
+```
+
+```php Category validation
+$validate = \Validator::make($params_array, [
+    'name' => 'required'
+]);
+```
+</CodeGroup>
+
+<Warning>
+Always validate input data before creating or updating models to prevent invalid data from entering the database.
+</Warning>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/concepts/authentication">
+    Learn how user authentication works with JWT tokens
+  </Card>
+  <Card title="API endpoints" icon="code" href="/api/auth/register">
+    Explore available endpoints for working with these models
+  </Card>
+</CardGroup>

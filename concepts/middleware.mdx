@@ -1,0 +1,340 @@
+---
+title: Middleware
+description: Learn how API authentication middleware protects routes in the Laravel Blog API
+---
+
+The Laravel Blog API uses custom middleware to protect endpoints that require authentication. The `ApiAuthMiddleware` validates JWT tokens before allowing access to protected routes.
+
+## ApiAuthMiddleware implementation
+
+The middleware checks for a valid JWT token in the `Authorization` header:
+
+```php app/Http/Middleware/ApiAuthMiddleware.php
+class ApiAuthMiddleware
+{
+    public function handle($request, Closure $next) {
+        $token = $request->header('Authorization');
+        $jwtAuth = new \JwtAuth();
+        $checkToken = $jwtAuth->checkToken($token);
+
+        if($checkToken) {
+            return $next($request);
+        }
+        else {
+            $data = array(
+                'code' => 400,
+                'status' => 'error',
+                'message' => 'El usuario no esta identificado.'
+            );
+            return response()->json($data, $data['code']);
+        }
+    }
+}
+```
+
+### How it works
+
+<Steps>
+  <Step title="Extract token">
+    The middleware retrieves the JWT token from the `Authorization` header:
+
+    ```php
+    $token = $request->header('Authorization');
+    ```
+  </Step>
+  <Step title="Validate token">
+    It uses the `JwtAuth` helper to validate the token:
+
+    ```php
+    $jwtAuth = new \JwtAuth();
+    $checkToken = $jwtAuth->checkToken($token);
+    ```
+  </Step>
+  <Step title="Allow or deny">
+    If valid, the request proceeds. If invalid, it returns a 400 error:
+
+    ```php
+    if($checkToken) {
+        return $next($request); // Continue to controller
+    }
+    else {
+        return response()->json([
+            'code' => 400,
+            'status' => 'error',
+            'message' => 'User is not authenticated.'
+        ], 400);
+    }
+    ```
+  </Step>
+</Steps>
+
+<Note>
+The middleware is registered in your application as `api.auth` and can be applied to routes or controllers.
+</Note>
+
+## Applying middleware to controllers
+
+You can apply middleware in the controller constructor to protect specific methods:
+
+<Tabs>
+  <Tab title="PostController">
+    The PostController protects write operations while allowing public read access:
+
+    ```php app/Http/Controllers/PostController.php
+    public function __construct() {
+        $this->middleware('api.auth', ['except' => [
+            'index',
+            'show',
+            'getImage',
+            'getPostsByCategory',
+            'getPostsByUser',
+        ]]);
+    }
+    ```
+
+    **Protected endpoints** (require authentication):
+    - `store()` - Create new post
+    - `update()` - Update existing post
+    - `destroy()` - Delete post
+    - `upload()` - Upload post image
+
+    **Public endpoints** (no authentication):
+    - `index()` - List all posts
+    - `show()` - Get single post
+    - `getImage()` - Retrieve post image
+    - `getPostsByCategory()` - List posts by category
+    - `getPostsByUser()` - List posts by user
+  </Tab>
+  <Tab title="CategoryController">
+    The CategoryController has a similar pattern:
+
+    ```php app/Http/Controllers/CategoryController.php
+    public function __construct() {
+        $this->middleware('api.auth', ['except' => ['index','show']]);
+    }
+    ```
+
+    **Protected endpoints** (require authentication):
+    - `store()` - Create new category
+    - `update()` - Update category
+
+    **Public endpoints** (no authentication):
+    - `index()` - List all categories
+    - `show()` - Get single category
+  </Tab>
+</Tabs>
+
+<Warning>
+Routes not listed in the `except` array will require valid JWT authentication.
+</Warning>
+
+## Using middleware in protected methods
+
+Once a route passes middleware validation, you can safely extract user information from the token:
+
+```php app/Http/Controllers/PostController.php
+public function store(Request $request) {
+    // Get authenticated user from token
+    $jwtAuth = new JwtAuth();
+    $token = $request->header('Authorization', null);
+    $user = $jwtAuth->checkToken($token, true);
+
+    // Create post with user ID from token
+    $post = new Post();
+    $post->user_id = $user->sub;
+    $post->category_id = $params->category_id;
+    $post->title = $params->title;
+    $post->content = $params->content;
+    $post->image = $params->image;
+    $post->save();
+}
+```
+
+### Helper method for getting user identity
+
+Many controllers use a helper method to extract user identity:
+
+```php app/Http/Controllers/PostController.php
+private function getIdentity(Request $request) {
+    $jwtAuth = new JwtAuth();
+    $token = $request->header('Authorization', null);
+    $user = $jwtAuth->checkToken($token, true);
+    return $user;
+}
+
+// Usage in controller methods
+public function update($id, Request $request) {
+    $user = $this->getIdentity($request);
+
+    // Ensure user can only update their own posts
+    $post = Post::where('id', $id)
+        ->where('user_id', $user->sub)
+        ->first();
+
+    if(!empty($post)) {
+        $post->update($params_array);
+    }
+}
+```
+
+<Note>
+This pattern ensures users can only modify their own content.
+</Note>
+
+## Authorization patterns
+
+The API implements owner-based authorization:
+
+<CodeGroup>
+```php Update post (owner only)
+public function update($id, Request $request) {
+    $user = $this->getIdentity($request);
+
+    // Only fetch posts belonging to authenticated user
+    $post = Post::where('id', $id)
+        ->where('user_id', $user->sub)
+        ->first();
+
+    if(!empty($post) && is_object($post)) {
+        $post->update($params_array);
+    }
+}
+```
+
+```php Delete post (owner only)
+public function destroy($id, Request $request) {
+    $user = $this->getIdentity($request);
+
+    // Only delete posts belonging to authenticated user
+    $post = Post::where('id', $id)
+        ->where('user_id', $user->sub)
+        ->first();
+
+    if(!empty($post)) {
+        $post->delete();
+    }
+}
+```
+</CodeGroup>
+
+<Accordion title="Why use user_id in queries?">
+  By including `->where('user_id', $user->sub)` in queries, the API ensures:
+
+  - Users can only update or delete their own posts
+  - Prevents unauthorized access to other users' content
+  - No additional authorization logic needed
+  - Database-level security
+</Accordion>
+
+## Error responses
+
+When authentication fails, the middleware returns a consistent error response:
+
+```json
+{
+  "code": 400,
+  "status": "error",
+  "message": "El usuario no esta identificado."
+}
+```
+
+Common authentication failures:
+
+<Tabs>
+  <Tab title="Missing token">
+    Request sent without `Authorization` header:
+
+    ```bash
+    curl -X POST "https://api.example.com/api/post"
+    # Returns 400 error
+    ```
+  </Tab>
+  <Tab title="Invalid token">
+    Token is malformed or tampered with:
+
+    ```bash
+    curl -X POST "https://api.example.com/api/post" \
+      -H "Authorization: invalid.jwt.token"
+    # Returns 400 error
+    ```
+  </Tab>
+  <Tab title="Expired token">
+    Token is older than 7 days:
+
+    ```bash
+    curl -X POST "https://api.example.com/api/post" \
+      -H "Authorization: expired_token_here"
+    # Returns 400 error
+    ```
+  </Tab>
+</Tabs>
+
+## Manual token validation
+
+Some controllers manually validate tokens instead of using middleware:
+
+```php app/Http/Controllers/UserController.php
+public function update(Request $request) {
+    $token = $request->header('Authorization');
+    $jwtAuth = new \JwtAuth();
+    $checkToken = $jwtAuth->checkToken($token);
+
+    if($checkToken) {
+        // Process update
+        $user = $jwtAuth->checkToken($token, true);
+        $user_update = User::where('id', $user->sub)->update($params_array);
+    }
+    else {
+        $data = array(
+            'code' => 400,
+            'status' => 'error',
+            'message' => 'El usuario no esta identificado.'
+        );
+        return response()->json($data, $data['code']);
+    }
+}
+```
+
+<Warning>
+Using middleware in the constructor is preferred over manual validation as it's more maintainable and follows Laravel conventions.
+</Warning>
+
+## Testing protected endpoints
+
+To test protected endpoints, you need a valid JWT token:
+
+<Steps>
+  <Step title="Login to get token">
+    ```bash
+    curl -X POST "https://api.example.com/api/user/login" \
+      -H "Content-Type: application/json" \
+      -d '{"json":"{\"email\":\"user@example.com\",\"password\":\"password123\"}"}'
+    ```
+  </Step>
+  <Step title="Copy the JWT token">
+    The response will contain your JWT token:
+
+    ```json
+    "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+    ```
+  </Step>
+  <Step title="Use token in requests">
+    ```bash
+    curl -X POST "https://api.example.com/api/post" \
+      -H "Authorization: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..." \
+      -H "Content-Type: application/json" \
+      -d '{"json":"{\"title\":\"My Post\",\"content\":\"Content here\"}"} '
+    ```
+  </Step>
+</Steps>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/concepts/authentication">
+    Deep dive into JWT token generation and validation
+  </Card>
+  <Card title="Protected endpoints" icon="lock" href="/api/posts/create-post">
+    Explore endpoints that require authentication
+  </Card>
+</CardGroup>

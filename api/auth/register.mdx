@@ -1,0 +1,173 @@
+---
+title: 'Register User'
+api: 'POST /api/register'
+description: 'Create a new user account with email and password'
+---
+
+## Overview
+
+Registers a new user in the system. The endpoint validates the input data, hashes the password using SHA-256, and creates a user with the default `ROLE_USER` role.
+
+## Request
+
+### Body Parameters
+
+The request body must contain a `json` parameter with a JSON string containing the user details.
+
+<ParamField body="json" type="string" required>
+  JSON string containing the user registration data with the following fields:
+  
+  <ParamField body="name" type="string" required>
+    User's first name. Must contain only alphabetic characters.
+  </ParamField>
+  
+  <ParamField body="surname" type="string" required>
+    User's last name. Must contain only alphabetic characters.
+  </ParamField>
+  
+  <ParamField body="email" type="string" required>
+    User's email address. Must be a valid email format and unique in the system.
+  </ParamField>
+  
+  <ParamField body="password" type="string" required>
+    User's password. Will be hashed using SHA-256 before storage.
+  </ParamField>
+</ParamField>
+
+### Request Example
+
+```bash cURL
+curl -X POST https://your-domain.com/api/register \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d 'json={"name":"John","surname":"Doe","email":"john.doe@example.com","password":"secretpassword123"}'
+```
+
+## Response
+
+### Success Response (200)
+
+<ResponseField name="status" type="string">
+  Response status. Returns `"success"` when user is created successfully.
+</ResponseField>
+
+<ResponseField name="code" type="string">
+  HTTP status code as string. Returns `"200"` for success.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Human-readable success message: `"El usuario se ha creado correctamente"`
+</ResponseField>
+
+<ResponseField name="user" type="object">
+  The created user object containing:
+  
+  <ResponseField name="id" type="integer">
+    Unique user identifier
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    User's first name
+  </ResponseField>
+  
+  <ResponseField name="surname" type="string">
+    User's last name
+  </ResponseField>
+  
+  <ResponseField name="email" type="string">
+    User's email address
+  </ResponseField>
+  
+  <ResponseField name="password" type="string">
+    Hashed password (SHA-256)
+  </ResponseField>
+  
+  <ResponseField name="role" type="string">
+    User role, defaults to `"ROLE_USER"`
+  </ResponseField>
+  
+  <ResponseField name="created_at" type="string">
+    Timestamp of account creation
+  </ResponseField>
+  
+  <ResponseField name="updated_at" type="string">
+    Timestamp of last update
+  </ResponseField>
+</ResponseField>
+
+#### Success Example
+
+```json
+{
+  "status": "success",
+  "code": "200",
+  "message": "El usuario se ha creado correctamente",
+  "user": {
+    "id": 1,
+    "name": "John",
+    "surname": "Doe",
+    "email": "john.doe@example.com",
+    "password": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+    "role": "ROLE_USER",
+    "created_at": "2026-03-04T10:30:00.000000Z",
+    "updated_at": "2026-03-04T10:30:00.000000Z"
+  }
+}
+```
+
+### Error Responses
+
+<Accordion title="Validation Error (404)">
+  Returned when the input data fails validation.
+
+  ```json
+  {
+    "status": "error",
+    "code": "404",
+    "message": "El usuario no se ha creado",
+    "errors": {
+      "email": [
+        "The email has already been taken."
+      ],
+      "name": [
+        "The name field is required."
+      ]
+    }
+  }
+  ```
+
+  **Common validation errors:**
+  - `name`: Must be present and contain only alphabetic characters
+  - `surname`: Must be present and contain only alphabetic characters
+  - `email`: Must be a valid email format and not already registered
+  - `password`: Must be present
+</Accordion>
+
+<Accordion title="Invalid Data Format (404)">
+  Returned when the `json` parameter is missing or malformed.
+
+  ```json
+  {
+    "status": "error",
+    "code": "404",
+    "message": "Los datos enviados no son correctos"
+  }
+  ```
+</Accordion>
+
+## Important Notes
+
+<Note>
+  **Password Security**: Passwords are hashed using SHA-256 algorithm before being stored in the database. The same hashing method must be used during login authentication.
+</Note>
+
+<Note>
+  **Default Role**: All newly registered users are automatically assigned the `ROLE_USER` role. This role cannot be changed during registration.
+</Note>
+
+<Warning>
+  **Data Trimming**: All input fields are automatically trimmed of leading and trailing whitespace before validation.
+</Warning>
+
+<Info>
+  **JSON Parameter Format**: The request requires a `json` parameter containing a JSON string, not direct JSON in the request body. This is a specific requirement of this API implementation.
+</Info>

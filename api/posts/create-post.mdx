@@ -1,0 +1,191 @@
+---
+title: 'Create Post'
+api: 'POST /api/post'
+description: 'Create a new blog post'
+---
+
+## Overview
+
+This endpoint creates a new blog post. The authenticated user is automatically set as the post author based on the JWT token.
+
+<Warning>
+  This endpoint requires authentication. You must include a valid JWT token in the Authorization header.
+</Warning>
+
+## Endpoint
+
+```
+POST /api/post
+```
+
+## Authentication
+
+Required. This endpoint uses the `api.auth` middleware to verify the JWT token.
+
+**Header:**
+```
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+## Request Parameters
+
+All parameters must be sent as a JSON string in the `json` field.
+
+<ParamField body="json" type="string" required>
+  JSON-encoded string containing the post data
+  
+  <ParamField body="title" type="string" required>
+    Title of the post
+  </ParamField>
+  
+  <ParamField body="content" type="string" required>
+    Content/body of the post
+  </ParamField>
+  
+  <ParamField body="category_id" type="number" required>
+    ID of the category this post belongs to
+  </ParamField>
+  
+  <ParamField body="image" type="string" required>
+    Filename of the uploaded image (use the upload endpoint first)
+  </ParamField>
+</ParamField>
+
+### Example Request Body
+
+```json
+{
+  "json": "{\"title\":\"My New Post\",\"content\":\"This is the content of my post...\",\"category_id\":2,\"image\":\"1678901234photo.jpg\"}"
+}
+```
+
+<Note>
+  The `user_id` is automatically extracted from the JWT token and does not need to be provided in the request.
+</Note>
+
+## Response
+
+### Success Response (200)
+
+<ResponseField name="code" type="number" required>
+  HTTP status code (200 for success)
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Status message ("success")
+</ResponseField>
+
+<ResponseField name="post" type="object" required>
+  The newly created post object
+  
+  <ResponseField name="id" type="number">
+    Unique identifier for the post
+  </ResponseField>
+  
+  <ResponseField name="user_id" type="number">
+    ID of the user who created the post (from JWT token)
+  </ResponseField>
+  
+  <ResponseField name="category_id" type="number">
+    ID of the post's category
+  </ResponseField>
+  
+  <ResponseField name="title" type="string">
+    Title of the post
+  </ResponseField>
+  
+  <ResponseField name="content" type="string">
+    Content/body of the post
+  </ResponseField>
+  
+  <ResponseField name="image" type="string">
+    Filename of the post's image
+  </ResponseField>
+  
+  <ResponseField name="created_at" type="string">
+    Timestamp when the post was created
+  </ResponseField>
+  
+  <ResponseField name="updated_at" type="string">
+    Timestamp when the post was last updated
+  </ResponseField>
+</ResponseField>
+
+```json
+{
+  "code": 200,
+  "status": "success",
+  "post": {
+    "id": 15,
+    "user_id": 5,
+    "category_id": 2,
+    "title": "My New Post",
+    "content": "This is the content of my post...",
+    "image": "1678901234photo.jpg",
+    "created_at": "2026-03-04T14:25:30.000000Z",
+    "updated_at": "2026-03-04T14:25:30.000000Z"
+  }
+}
+```
+
+### Error Response (400) - Validation Failed
+
+<ResponseField name="code" type="number">
+  HTTP status code (400 for bad request)
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Status message ("error")
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error description
+</ResponseField>
+
+```json
+{
+  "code": 400,
+  "status": "error",
+  "message": "Faltan datos"
+}
+```
+
+### Error Response (400) - Invalid JSON
+
+```json
+{
+  "code": 400,
+  "status": "error",
+  "message": "Envia los datos correctamente"
+}
+```
+
+## Validation Rules
+
+The following validation rules are enforced:
+
+- `title`: Required field
+- `content`: Required field
+- `category_id`: Required field
+- `image`: Required field
+
+## Implementation Details
+
+The endpoint extracts the user ID from the JWT token:
+
+```php
+$jwtAuth = new JwtAuth();
+$token = $request->header('Authorization', null);
+$user = $jwtAuth->checkToken($token, true);
+$post->user_id = $user->sub;
+```
+
+<Note>
+  Before creating a post, you should first upload an image using the [Upload Image](/api/posts/upload-image) endpoint to get the image filename.
+</Note>
+
+## Related Endpoints
+
+- [Upload Image](/api/posts/upload-image) - Upload a post image before creating the post
+- [Update Post](/api/posts/update-post) - Update an existing post
+- [List Posts](/api/posts/list-posts) - View all posts

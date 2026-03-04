@@ -1,0 +1,228 @@
+---
+title: 'Update Post'
+api: 'PUT /api/post/{id}'
+description: 'Update an existing blog post'
+---
+
+## Overview
+
+This endpoint updates an existing blog post. Users can only update posts they have created. The system verifies ownership by matching the post's `user_id` with the authenticated user's ID from the JWT token.
+
+<Warning>
+  This endpoint requires authentication. You must include a valid JWT token in the Authorization header.
+</Warning>
+
+## Endpoint
+
+```
+PUT /api/post/{id}
+```
+
+## Authentication
+
+Required. This endpoint uses the `api.auth` middleware to verify the JWT token.
+
+**Header:**
+```
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+## Path Parameters
+
+<ParamField path="id" type="number" required>
+  The unique identifier of the post to update
+</ParamField>
+
+## Request Parameters
+
+All parameters must be sent as a JSON string in the `json` field.
+
+<ParamField body="json" type="string" required>
+  JSON-encoded string containing the post data to update
+  
+  <ParamField body="title" type="string" required>
+    Updated title of the post
+  </ParamField>
+  
+  <ParamField body="content" type="string" required>
+    Updated content/body of the post
+  </ParamField>
+  
+  <ParamField body="category_id" type="number" required>
+    ID of the category this post belongs to
+  </ParamField>
+  
+  <ParamField body="image" type="string" optional>
+    Filename of the uploaded image (optional for updates)
+  </ParamField>
+</ParamField>
+
+### Example Request Body
+
+```json
+{
+  "json": "{\"title\":\"Updated Post Title\",\"content\":\"This is the updated content...\",\"category_id\":3,\"image\":\"1678905678newimage.jpg\"}"
+}
+```
+
+<Note>
+  The following fields are automatically removed from the update and cannot be modified: `id`, `user_id`, `created_at`, and `user`.
+</Note>
+
+## Response
+
+### Success Response (200)
+
+<ResponseField name="code" type="number" required>
+  HTTP status code (200 for success)
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Status message ("success")
+</ResponseField>
+
+<ResponseField name="changes" type="object" required>
+  Object containing the fields that were updated
+</ResponseField>
+
+<ResponseField name="post" type="object" required>
+  The updated post object
+  
+  <ResponseField name="id" type="number">
+    Unique identifier for the post
+  </ResponseField>
+  
+  <ResponseField name="user_id" type="number">
+    ID of the user who created the post
+  </ResponseField>
+  
+  <ResponseField name="category_id" type="number">
+    ID of the post's category
+  </ResponseField>
+  
+  <ResponseField name="title" type="string">
+    Title of the post
+  </ResponseField>
+  
+  <ResponseField name="content" type="string">
+    Content/body of the post
+  </ResponseField>
+  
+  <ResponseField name="image" type="string">
+    Filename of the post's image
+  </ResponseField>
+  
+  <ResponseField name="created_at" type="string">
+    Timestamp when the post was created
+  </ResponseField>
+  
+  <ResponseField name="updated_at" type="string">
+    Timestamp when the post was last updated
+  </ResponseField>
+</ResponseField>
+
+```json
+{
+  "code": 200,
+  "status": "success",
+  "changes": {
+    "title": "Updated Post Title",
+    "content": "This is the updated content...",
+    "category_id": 3,
+    "image": "1678905678newimage.jpg"
+  },
+  "post": {
+    "id": 15,
+    "user_id": 5,
+    "category_id": 3,
+    "title": "Updated Post Title",
+    "content": "This is the updated content...",
+    "image": "1678905678newimage.jpg",
+    "created_at": "2026-03-04T14:25:30.000000Z",
+    "updated_at": "2026-03-04T15:10:45.000000Z"
+  }
+}
+```
+
+### Error Response (400) - Validation Failed
+
+<ResponseField name="code" type="number">
+  HTTP status code (400 for bad request)
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Status message ("error")
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error description
+</ResponseField>
+
+<ResponseField name="errors" type="object">
+  Validation error details
+</ResponseField>
+
+```json
+{
+  "code": 400,
+  "status": "error",
+  "message": "datos enviados incorrecto",
+  "errors": {
+    "title": [
+      "The title field is required."
+    ]
+  }
+}
+```
+
+### Error Response (400) - Post Not Found or Unauthorized
+
+If the post doesn't exist or doesn't belong to the authenticated user:
+
+```json
+{
+  "code": 400,
+  "status": "error",
+  "message": "datos enviados incorrecto"
+}
+```
+
+## Validation Rules
+
+The following validation rules are enforced:
+
+- `title`: Required field
+- `content`: Required field
+- `category_id`: Required field
+
+<Note>
+  Unlike the create endpoint, the `image` field is not required when updating a post.
+</Note>
+
+## Authorization
+
+The endpoint verifies ownership before allowing updates:
+
+```php
+$post = Post::where('id', $id)
+    ->where('user_id', $user->sub)
+    ->first();
+```
+
+<Warning>
+  You can only update posts that you have created. Attempting to update another user's post will result in an error.
+</Warning>
+
+## Protected Fields
+
+The following fields are automatically removed and cannot be updated:
+- `id` - Post identifier
+- `user_id` - Post owner
+- `created_at` - Creation timestamp
+- `user` - User relationship data
+
+## Related Endpoints
+
+- [Get Post](/api/posts/get-post) - View the post details
+- [Delete Post](/api/posts/delete-post) - Delete a post
+- [Upload Image](/api/posts/upload-image) - Upload a new image for the post

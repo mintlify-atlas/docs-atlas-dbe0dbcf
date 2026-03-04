@@ -1,0 +1,145 @@
+---
+title: 'Create Category'
+description: 'Create a new category'
+---
+
+## Endpoint
+
+<ParamField path="method" type="string" default="POST">
+  POST
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/category
+</ParamField>
+
+<Note>
+  This endpoint requires authentication. Include a valid authorization token in the request.
+</Note>
+
+## Authentication
+
+This endpoint is protected by the `api.auth` middleware. You must include a valid authorization token in the request headers.
+
+## Request Body
+
+The request body must contain a `json` parameter with a JSON string containing the category data.
+
+<ParamField body="json" type="string" required>
+  JSON string containing category data
+  
+  <ParamField body="name" type="string" required>
+    The name of the category (required)
+  </ParamField>
+</ParamField>
+
+## Validation Rules
+
+- `name`: Required field
+
+## Response
+
+Returns a JSON object containing the created category or an error message.
+
+### Success Response
+
+<ResponseField name="code" type="number">
+  HTTP status code (200 for success)
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Response status ('success')
+</ResponseField>
+
+<ResponseField name="category" type="object">
+  The created category object
+  
+  <ResponseField name="id" type="number">
+    Category ID (auto-generated)
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    Category name
+  </ResponseField>
+  
+  <ResponseField name="created_at" type="string">
+    Timestamp when the category was created
+  </ResponseField>
+  
+  <ResponseField name="updated_at" type="string">
+    Timestamp when the category was last updated
+  </ResponseField>
+</ResponseField>
+
+### Error Response
+
+<ResponseField name="code" type="number">
+  HTTP status code (400 for validation error)
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Response status ('error')
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message describing what went wrong
+</ResponseField>
+
+## Example Request
+
+```bash cURL
+curl -X POST http://your-domain.com/api/category \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d 'json={"name":"Technology"}'
+```
+
+## Example Responses
+
+### Success Response (200)
+
+```json
+{
+  "code": 200,
+  "status": "success",
+  "category": {
+    "id": 1,
+    "name": "Technology",
+    "created_at": "2024-01-15T10:30:00.000000Z",
+    "updated_at": "2024-01-15T10:30:00.000000Z"
+  }
+}
+```
+
+### Validation Error (400)
+
+```json
+{
+  "code": 400,
+  "status": "error",
+  "message": "No se ha guardado la categoria"
+}
+```
+
+### Empty Request Error (400)
+
+```json
+{
+  "code": 400,
+  "status": "error",
+  "message": "No has enviado ninguna categoria"
+}
+```
+
+## Implementation Details
+
+This endpoint is defined in `CategoryController.php:50`. It:
+
+1. Receives data as a JSON string in the `json` parameter
+2. Validates that the `name` field is present (defined at line 58-60)
+3. Creates a new Category model instance and saves it to the database
+4. Excludes `index` and `show` methods from authentication (middleware defined at line 16)
+
+<Note>
+  The request expects data to be sent as a form parameter named `json` containing a JSON string, not as direct JSON in the request body.
+</Note>

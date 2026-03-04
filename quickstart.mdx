@@ -1,80 +1,202 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get started with the Laravel Blog API in minutes
 ---
 
-## Get started in three steps
+This guide will walk you through setting up the Laravel Blog API and making your first authenticated API call.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, ensure you have the following installed:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+- PHP 7.1.3 or higher
+- Composer
+- MySQL or another supported database
+- Git
 
-### Step 2: Deploy your changes
+## Setup steps
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+<Steps>
+  <Step title="Clone the repository">
+    Clone the Laravel Blog API repository to your local machine:
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    ```bash
+    git clone <repository-url> laravel-blog-api
+    cd laravel-blog-api
+    ```
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Install dependencies">
+    Install the required PHP packages using Composer:
 
-### Step 3: Go live
+    ```bash
+    composer install
+    ```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    This will install all dependencies including:
+    - Laravel Framework 5.7
+    - Firebase PHP-JWT 3.0.0
+    - Laravel Tinker
+  </Step>
+
+  <Step title="Configure environment">
+    Copy the example environment file and generate an application key:
+
+    ```bash
+    cp .env.example .env
+    php artisan key:generate
+    ```
+
+    Open the `.env` file and configure your database connection:
+
+    ```bash
+    DB_CONNECTION=mysql
+    DB_HOST=127.0.0.1
+    DB_PORT=3306
+    DB_DATABASE=your_database_name
+    DB_USERNAME=your_database_user
+    DB_PASSWORD=your_database_password
+    ```
+
+    <Note>
+      Make sure to create the database before running migrations.
+    </Note>
+  </Step>
+
+  <Step title="Run database migrations">
+    Create the necessary database tables:
+
+    ```bash
+    php artisan migrate
+    ```
+
+    This will create the `users` table and other required tables.
+  </Step>
+
+  <Step title="Start the development server">
+    Launch the Laravel development server:
+
+    ```bash
+    php artisan serve
+    ```
+
+    The API will be available at `http://localhost:8000`.
+  </Step>
+</Steps>
+
+## Make your first API call
+
+Now that your API is running, let's make some authenticated requests.
+
+### Register a new user
+
+Create your first user account by sending a POST request to the register endpoint:
+
+<CodeGroup>
+```bash cURL
+curl -X POST http://localhost:8000/api/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "json": "{\"name\":\"John\",\"surname\":\"Doe\",\"email\":\"john@example.com\",\"password\":\"secret123\"}"
+  }'
+```
+
+```json Response
+{
+  "status": "success",
+  "code": "200",
+  "message": "El usuario se ha creado correctamente",
+  "user": {
+    "name": "John",
+    "surname": "Doe",
+    "email": "john@example.com",
+    "role": "ROLE_USER",
+    "updated_at": "2026-03-04 12:00:00",
+    "created_at": "2026-03-04 12:00:00",
+    "id": 1
+  }
+}
+```
+</CodeGroup>
+
+<Note>
+  The API expects user data to be sent as a JSON string within a `json` parameter. The password is hashed using SHA-256.
+</Note>
+
+### Login and get JWT token
+
+Authenticate with your credentials to receive a JWT token:
+
+<CodeGroup>
+```bash cURL
+curl -X POST http://localhost:8000/api/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "json": "{\"email\":\"john@example.com\",\"password\":\"secret123\"}"
+  }'
+```
+
+```json Response
+"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImVtYWlsIjoiam9obkBleGFtcGxlLmNvbSIsIm5hbWUiOiJKb2huIiwic3VybmFtZSI6IkRvZSIsImRlc2NyaXB0aW9uIjpudWxsLCJpbWFnZSI6bnVsbCwiaWF0IjoxNzA5NTUxMjAwLCJleHAiOjE3MTAxNTYwMDB9.abc123def456"
+```
+</CodeGroup>
+
+The response is a JWT token string. Save this token for making authenticated requests.
+
+<Warning>
+  The JWT token expires after 7 days. You'll need to login again to get a new token after expiration.
+</Warning>
+
+### Make an authenticated request
+
+Use the JWT token to make authenticated API calls. Here's an example updating user information:
+
+<CodeGroup>
+```bash cURL
+curl -X PUT http://localhost:8000/api/user/update \
+  -H "Content-Type: application/json" \
+  -H "Authorization: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..." \
+  -d '{
+    "json": "{\"name\":\"Jane\",\"surname\":\"Doe\",\"email\":\"john@example.com\"}"
+  }'
+```
+
+```json Response
+{
+  "code": 200,
+  "status": "success",
+  "user": {
+    "sub": 1,
+    "email": "john@example.com",
+    "name": "John",
+    "surname": "Doe",
+    "description": null,
+    "image": null,
+    "iat": 1709551200,
+    "exp": 1710156000
+  },
+  "changes": {
+    "name": "Jane",
+    "surname": "Doe",
+    "email": "john@example.com"
+  }
+}
+```
+</CodeGroup>
+
+<Note>
+  All authenticated endpoints require the JWT token in the `Authorization` header. Replace the token value with your actual token from the login response.
+</Note>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
+Now that you've made your first authenticated API call, you can:
 
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+- Explore the available endpoints in the API Reference
+- Learn about category and post management
+- Implement image upload functionality
+- Integrate the API into your application
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  The JWT token is validated using the secret key defined in `app/Helpers/JwtAuth.php:13`. In production, make sure to use a secure secret key.
 </Note>
