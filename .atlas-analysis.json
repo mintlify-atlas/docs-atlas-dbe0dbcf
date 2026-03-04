@@ -1,0 +1,111 @@
+{
+  "projectType": "api-service",
+  "projectName": "Laravel Blog API",
+  "projectDescription": "RESTful API built with Laravel for managing blog posts, categories, and users with JWT authentication",
+  "theme": "mint",
+  "primaryColor": "#040404",
+  "lightColor": "#ef370f",
+  "darkColor": "#f79d72",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/authentication",
+              "concepts/models",
+              "concepts/middleware"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/setup",
+              "guides/database-migrations",
+              "guides/deployment"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Authentication",
+            "pages": [
+              "api/auth/register",
+              "api/auth/login"
+            ]
+          },
+          {
+            "group": "Users",
+            "pages": [
+              "api/users/get-user",
+              "api/users/update-user",
+              "api/users/upload-avatar"
+            ]
+          },
+          {
+            "group": "Posts",
+            "pages": [
+              "api/posts/list-posts",
+              "api/posts/get-post",
+              "api/posts/create-post",
+              "api/posts/update-post",
+              "api/posts/delete-post",
+              "api/posts/upload-image"
+            ]
+          },
+          {
+            "group": "Categories",
+            "pages": [
+              "api/categories/list-categories",
+              "api/categories/get-category",
+              "api/categories/create-category",
+              "api/categories/update-category"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "JWT-based authentication with token generation and validation",
+    "Complete CRUD operations for blog posts and categories",
+    "User management with profile updates and avatar uploads",
+    "Post and category relationship management",
+    "Image upload functionality for posts and user avatars",
+    "RESTful API design with JSON responses"
+  ],
+  "publicApiSurface": [
+    "POST /api/register",
+    "POST /api/login",
+    "PUT /api/user/update",
+    "POST /api/user/upload",
+    "GET /api/user/avatar/{filename}",
+    "GET /api/user/detail/{id}",
+    "GET /api/category",
+    "POST /api/category",
+    "GET /api/category/{id}",
+    "PUT /api/category/{id}",
+    "GET /api/post",
+    "POST /api/post",
+    "GET /api/post/{id}",
+    "PUT /api/post/{id}",
+    "DELETE /api/post/{id}",
+    "POST /api/post/upload",
+    "GET /api/post/image/{filename}",
+    "GET /api/post/category/{id}",
+    "GET /api/post/user/{id}"
+  ]
+}
